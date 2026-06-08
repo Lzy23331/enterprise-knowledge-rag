@@ -12,7 +12,7 @@ st.set_page_config(page_title="SmartOfficeRAG", page_icon="🏢", layout="wide")
 PROJECT_ROOT = Path(__file__).resolve().parent
 POLICY_DIR = PROJECT_ROOT / "data" / "policies"
 EVAL_REPORT_PATH = PROJECT_ROOT / "eval_report.json"
-APP_VERSION = "cloud-lite-v1"
+APP_VERSION = "cloud-lite-v2"
 
 FRONT_MATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 HEADER_PATTERN = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
@@ -246,6 +246,17 @@ def no_evidence_answer() -> str:
     )
 
 
+def clean_snippet_text(text: str, max_chars: int = 360) -> str:
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        stripped = re.sub(r"^#{1,6}\s*", "", stripped)
+        lines.append(stripped)
+    return " ".join(lines)[:max_chars]
+
+
 def generate_answer(question: str, retrieved: List[Dict[str, str]]) -> str:
     if not retrieved or any(term in question for term in OUT_OF_SCOPE_TERMS):
         return no_evidence_answer()
@@ -256,8 +267,7 @@ def generate_answer(question: str, retrieved: List[Dict[str, str]]) -> str:
 
     snippets = []
     for chunk in answer_chunks[:3]:
-        text = " ".join(line.strip() for line in chunk["content"].splitlines() if line.strip())
-        snippets.append(text[:360])
+        snippets.append(clean_snippet_text(chunk["content"]))
 
     citations = []
     for chunk in answer_chunks[:4]:
