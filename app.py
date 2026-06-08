@@ -297,6 +297,9 @@ def main() -> None:
     st.title("SmartOfficeRAG 企业员工服务知识库助手")
     st.caption("面向 HR、财务、IT、安全、行政、法务、采购、审计与运营流程的可溯源 RAG Demo")
 
+    if "question" not in st.session_state:
+        st.session_state["question"] = EXAMPLE_QUESTIONS["HR / 财务"][0]
+
     parents, chunks = load_knowledge_base()
     eval_summary = load_eval_summary()
     options = filter_options(chunks)
@@ -343,7 +346,7 @@ def main() -> None:
 
     question = st.text_area(
         "请输入员工问题",
-        value=st.session_state.get("question", EXAMPLE_QUESTIONS["HR / 财务"][0]),
+        key="question",
         height=100,
     )
 

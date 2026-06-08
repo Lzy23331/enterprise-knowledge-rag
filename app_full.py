@@ -57,6 +57,9 @@ def main() -> None:
     st.title("SmartOfficeRAG 企业员工服务知识库助手（本地完整版）")
     st.caption("FAISS/NumPy 向量检索 + BM25 + RRF + DeepSeek/OpenAI-compatible 生成 + 来源引用")
 
+    if "question" not in st.session_state:
+        st.session_state["question"] = EXAMPLE_QUESTIONS["HR / 财务"][0]
+
     rag = load_rag()
     filter_options = rag.get_filter_options()
     eval_summary = load_eval_summary()
@@ -107,7 +110,7 @@ def main() -> None:
 
     question = st.text_area(
         "请输入员工问题",
-        value=st.session_state.get("question", EXAMPLE_QUESTIONS["HR / 财务"][0]),
+        key="question",
         height=100,
     )
 
