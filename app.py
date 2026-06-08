@@ -68,7 +68,7 @@ def main() -> None:
     status_cols[3].metric("Hit@5", f"{eval_summary.get('hit_at_5', 0):.3f}" if eval_summary else "N/A")
     status_cols[4].metric("拒答准确", f"{eval_summary.get('refusal_accuracy', 0):.3f}" if eval_summary else "N/A")
     st.caption(
-        f"版本：{APP_VERSION} | 向量检索：{os.getenv('SMARTOFFICE_USE_VECTOR', '0')} | "
+        f"版本：{APP_VERSION} | 向量检索：{os.getenv('SMARTOFFICE_USE_VECTOR', '1')} | "
         f"HF_HOME：{os.getenv('HF_HOME', '未设置')}"
     )
 

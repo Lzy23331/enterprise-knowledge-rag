@@ -1,17 +1,13 @@
 import os
 from typing import Iterable, List, Optional
 
-from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from openai import OpenAI
+
+from .types import Document
 
 
-ANSWER_PROMPT = ChatPromptTemplate.from_template(
-    """你是企业员工服务知识库助手。请只基于给定资料回答问题，不要编造制度。
-
-如果资料中没有明确依据，请回答“当前知识库没有检索到明确依据，建议联系对应负责部门确认”，并说明已检索到的相近资料。
-
+ANSWER_TEMPLATE = """你是企业员工服务知识库助手。请只基于给定资料回答问题，不要编造制度。
+如果资料中没有明确依据，请回答“当前知识库没有检索到明确依据，建议联系对应负责部门确认”，并说明已经检索到的相近资料。
 请严格使用以下格式：
 
 结论：
@@ -29,13 +25,13 @@ ANSWER_PROMPT = ChatPromptTemplate.from_template(
 引用来源：
 - ...
 
-用户问题：{question}
+用户问题：
+{question}
 
 检索资料：
 {context}
 
 回答："""
-)
 
 
 class AnswerGenerator:
@@ -46,16 +42,13 @@ class AnswerGenerator:
         temperature: float = 0.1,
         max_tokens: int = 1600,
     ):
-        self.llm = None
+        self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.client = None
         api_key = self._get_api_key()
         if api_key:
-            self.llm = ChatOpenAI(
-                model=model_name,
-                base_url=base_url,
-                api_key=api_key,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
 
     @staticmethod
     def _get_api_key() -> Optional[str]:
@@ -74,13 +67,19 @@ class AnswerGenerator:
         if not docs:
             return self._no_evidence_answer()
 
-        context = self._format_context(docs)
-        if self.llm is None:
+        if self.client is None:
             return self._extractive_answer(question, docs)
 
-        chain = ANSWER_PROMPT | self.llm | StrOutputParser()
+        context = self._format_context(docs)
+        prompt = ANSWER_TEMPLATE.format(question=question, context=context)
         try:
-            return chain.invoke({"question": question, "context": context})
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+            return response.choices[0].message.content or self._extractive_answer(question, docs)
         except Exception as exc:
             return (
                 self._extractive_answer(question, docs)
@@ -117,7 +116,7 @@ class AnswerGenerator:
             "当前知识库没有检索到明确依据，建议联系对应负责部门确认。\n\n"
             "办理/处理步骤：\n"
             "1. 确认问题所属部门。\n"
-            "2. 联系 HR、财务、IT 或信息安全等制度负责人。\n\n"
+            "2. 联系 HR、财务、IT、信息安全或对应制度负责人。\n\n"
             "所需材料：\n"
             "- 暂无明确依据。\n\n"
             "注意事项：\n"
@@ -131,11 +130,15 @@ class AnswerGenerator:
         primary = docs[0]
         primary_doc_id = primary.metadata.get("doc_id")
         answer_docs = [doc for doc in docs if doc.metadata.get("doc_id") == primary_doc_id] or docs[:1]
-        answer_docs = AnswerGenerator._prioritize_answer_docs(question, answer_docs, primary.metadata.get("process_type", ""))
+        answer_docs = AnswerGenerator._prioritize_answer_docs(
+            question,
+            answer_docs,
+            primary.metadata.get("process_type", ""),
+        )
         snippets = []
         for doc in answer_docs[:3]:
             text = " ".join(line.strip() for line in doc.page_content.splitlines() if line.strip())
-            snippets.append(text[:260])
+            snippets.append(text[:360])
 
         citations = []
         for doc in answer_docs[:4]:
@@ -168,13 +171,15 @@ class AnswerGenerator:
             section = str(doc.metadata.get("section", ""))
             text = doc.page_content
             value = 0
-            if ("办理步骤" in section) and any(term in question for term in ("步骤", "流程", "怎么办", "如何", "哪个系统", "系统提交", "哪里提交")):
+            if "办理步骤" in section and any(
+                term in question for term in ("步骤", "流程", "怎么办", "如何", "哪个系统", "系统提交", "哪里提交")
+            ):
                 value += 40
-            if ("所需材料" in section) and any(term in question for term in ("材料", "资料", "需要哪些")):
+            if "所需材料" in section and any(term in question for term in ("材料", "资料", "需要哪些")):
                 value += 40
-            if ("审批 SLA" in section) and any(term in question for term in ("时限", "多久", "提前", "SLA")):
+            if "审批 SLA" in section and any(term in question for term in ("时限", "多久", "提前", "SLA")):
                 value += 40
-            if ("注意事项" in section) and any(term in question for term in ("风险", "注意", "合规")):
+            if "注意事项" in section and any(term in question for term in ("风险", "注意", "合规")):
                 value += 40
             if "办理步骤" in section:
                 value += 10

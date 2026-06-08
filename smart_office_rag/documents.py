@@ -3,11 +3,11 @@ import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from langchain_core.documents import Document
-from langchain_text_splitters import MarkdownHeaderTextSplitter
+from .types import Document
 
 
 FRONT_MATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
+HEADER_PATTERN = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
 
 
 def _parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
@@ -50,20 +50,9 @@ class PolicyDocumentLoader:
         return documents
 
     def split_documents(self, documents: List[Document]) -> List[Document]:
-        splitter = MarkdownHeaderTextSplitter(
-            headers_to_split_on=[
-                ("#", "section_1"),
-                ("##", "section_2"),
-                ("###", "section_3"),
-            ],
-            strip_headers=False,
-        )
-
         chunks: List[Document] = []
         for parent in documents:
-            split_docs = splitter.split_text(parent.page_content)
-            if not split_docs:
-                split_docs = [Document(page_content=parent.page_content, metadata={})]
+            split_docs = self._split_markdown_by_headers(parent.page_content)
 
             for index, chunk in enumerate(split_docs):
                 section = (
@@ -87,3 +76,33 @@ class PolicyDocumentLoader:
                 chunks.append(chunk)
         return chunks
 
+    @staticmethod
+    def _split_markdown_by_headers(text: str) -> List[Document]:
+        matches = list(HEADER_PATTERN.finditer(text))
+        if not matches:
+            return [Document(page_content=text.strip(), metadata={})]
+
+        documents: List[Document] = []
+        current_sections: Dict[int, str] = {}
+        for index, match in enumerate(matches):
+            level = len(match.group(1))
+            title = match.group(2).strip()
+            start = match.start()
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            content = text[start:end].strip()
+            if not content:
+                continue
+
+            current_sections[level] = title
+            for deeper_level in range(level + 1, 4):
+                current_sections.pop(deeper_level, None)
+
+            metadata = {}
+            if 1 in current_sections:
+                metadata["section_1"] = current_sections[1]
+            if 2 in current_sections:
+                metadata["section_2"] = current_sections[2]
+            if 3 in current_sections:
+                metadata["section_3"] = current_sections[3]
+            documents.append(Document(page_content=content, metadata=metadata))
+        return documents

@@ -1,9 +1,7 @@
-from dataclasses import dataclass
 from collections import Counter
+from dataclasses import dataclass
 import re
 from typing import Dict, List, Optional
-
-from langchain_core.documents import Document
 
 from .config import DEFAULT_CONFIG, RAGConfig
 from .documents import PolicyDocumentLoader
@@ -11,6 +9,7 @@ from .generator import AnswerGenerator
 from .indexing import VectorIndex
 from .retrieval import HybridRetriever
 from .retrieval import KeywordRetriever
+from .types import Document
 
 
 @dataclass
@@ -32,7 +31,7 @@ class EnterpriseKnowledgeRAG:
         "团建",
         "购车",
         "宿舍装修",
-        "食堂菜谱",
+        "食堂菜单",
         "投资供应商",
         "宠物医疗",
         "婚礼礼金",
@@ -87,10 +86,12 @@ class EnterpriseKnowledgeRAG:
         if self._is_out_of_scope(question):
             answer = self.generator.generate(question, [])
             return RAGResponse(answer=answer, sources=[], chunks=[])
+
         chunks = self.retriever.search(question, top_k=self.config.top_k, filters=filters)
         if self._is_low_confidence(question, chunks):
             answer = self.generator.generate(question, [])
             return RAGResponse(answer=answer, sources=[], chunks=[])
+
         answer = self.generator.generate(question, chunks)
         source_chunks = self._answer_source_chunks(question, chunks)
         return RAGResponse(answer=answer, sources=self._build_sources(source_chunks), chunks=chunks)

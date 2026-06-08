@@ -1,43 +1,113 @@
+import hashlib
+import pickle
+import re
 from pathlib import Path
 from typing import List, Optional
 
-from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 import numpy as np
 
+from .types import Document
+
 try:
-    from langchain_community.vectorstores import FAISS
+    from sentence_transformers import SentenceTransformer
 except Exception:
-    FAISS = None
+    SentenceTransformer = None
+
+try:
+    import faiss
+except Exception:
+    faiss = None
 
 
-class LocalVectorStore:
-    def __init__(self, embeddings: HuggingFaceEmbeddings, documents: List[Document], vectors: np.ndarray):
+class EmbeddingModel:
+    def __init__(self, model_name: str, fallback_dim: int = 512):
+        self.model_name = model_name
+        self.fallback_dim = fallback_dim
+        self.model = None
+        if SentenceTransformer is not None:
+            try:
+                self.model = SentenceTransformer(model_name)
+            except Exception as exc:
+                print(f"Embedding model is unavailable, falling back to local hashing vectors: {exc}")
+
+    def embed_documents(self, texts: List[str]) -> np.ndarray:
+        if self.model is not None:
+            return np.array(
+                self.model.encode(texts, normalize_embeddings=True, show_progress_bar=False),
+                dtype=np.float32,
+            )
+        return np.vstack([self._hash_embed(text) for text in texts]).astype(np.float32)
+
+    def embed_query(self, text: str) -> np.ndarray:
+        if self.model is not None:
+            return np.array(
+                self.model.encode([text], normalize_embeddings=True, show_progress_bar=False)[0],
+                dtype=np.float32,
+            )
+        return self._hash_embed(text).astype(np.float32)
+
+    def _hash_embed(self, text: str) -> np.ndarray:
+        vector = np.zeros(self.fallback_dim, dtype=np.float32)
+        for token in self._tokens(text):
+            digest = hashlib.md5(token.encode("utf-8")).digest()
+            index = int.from_bytes(digest[:4], "little") % self.fallback_dim
+            sign = 1.0 if digest[4] % 2 == 0 else -1.0
+            vector[index] += sign
+        norm = np.linalg.norm(vector)
+        if norm:
+            vector /= norm
+        return vector
+
+    @staticmethod
+    def _tokens(text: str) -> List[str]:
+        terms = []
+        terms.extend(re.findall(r"[A-Za-z0-9_]+", text.lower()))
+        chinese_runs = re.findall(r"[\u4e00-\u9fff]+", text)
+        for run in chinese_runs:
+            if len(run) == 1:
+                terms.append(run)
+            else:
+                terms.extend(run[index : index + 2] for index in range(len(run) - 1))
+                terms.extend(run[index : index + 3] for index in range(len(run) - 2))
+        return terms
+
+
+class VectorStore:
+    def __init__(self, embeddings: EmbeddingModel, documents: List[Document], vectors: np.ndarray):
         self.embeddings = embeddings
         self.documents = documents
         self.vectors = vectors
+        self.index = None
+        if faiss is not None and len(vectors):
+            self.index = faiss.IndexFlatIP(vectors.shape[1])
+            self.index.add(vectors)
 
     def as_retriever(self, search_kwargs: Optional[dict] = None):
-        return LocalVectorRetriever(self, (search_kwargs or {}).get("k", 8))
+        return VectorRetriever(self, (search_kwargs or {}).get("k", 8))
 
 
-class LocalVectorRetriever:
-    def __init__(self, vectorstore: LocalVectorStore, k: int):
+class VectorRetriever:
+    def __init__(self, vectorstore: VectorStore, k: int):
         self.vectorstore = vectorstore
         self.k = k
 
     def invoke(self, query: str) -> List[Document]:
-        query_vector = np.array(self.vectorstore.embeddings.embed_query(query), dtype=np.float32)
-        query_norm = np.linalg.norm(query_vector)
-        if query_norm:
-            query_vector = query_vector / query_norm
+        query_vector = self.vectorstore.embeddings.embed_query(query)
+        if self.vectorstore.index is not None:
+            scores, indices = self.vectorstore.index.search(query_vector.reshape(1, -1), self.k)
+            ranked_indices = indices[0]
+            ranked_scores = scores[0]
+        else:
+            scores = self.vectorstore.vectors @ query_vector
+            ranked_indices = np.argsort(scores)[::-1][: self.k]
+            ranked_scores = scores[ranked_indices]
 
-        scores = self.vectorstore.vectors @ query_vector
-        ranked = np.argsort(scores)[::-1][: self.k]
         results: List[Document] = []
-        for index in ranked:
+        for index, score in zip(ranked_indices, ranked_scores):
+            if int(index) < 0:
+                continue
             doc = self.vectorstore.documents[int(index)]
-            doc.metadata["vector_score"] = round(float(scores[int(index)]), 6)
+            doc.metadata["vector_score"] = round(float(score), 6)
             results.append(doc)
         return results
 
@@ -46,62 +116,36 @@ class VectorIndex:
     def __init__(self, model_name: str, index_path: Path):
         self.model_name = model_name
         self.index_path = Path(index_path)
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=model_name,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True},
-        )
-        self.vectorstore = None
+        self.embeddings = EmbeddingModel(model_name)
+        self.vectorstore: Optional[VectorStore] = None
 
     def load(self, documents: Optional[List[Document]] = None):
-        if not self.index_path.exists():
+        vectors_path = self.index_path / "vectors.npy"
+        metadata_path = self.index_path / "documents.pkl"
+        if documents is None or not vectors_path.exists():
             return None
-        if FAISS is None:
-            return self._load_local(documents)
 
-        try:
-            self.vectorstore = FAISS.load_local(
-                str(self.index_path),
-                self.embeddings,
-                allow_dangerous_deserialization=True,
-            )
-            return self.vectorstore
-        except ImportError:
-            return self._load_local(documents)
+        vectors = np.load(vectors_path)
+        if metadata_path.exists():
+            try:
+                with metadata_path.open("rb") as handle:
+                    documents = pickle.load(handle)
+            except Exception:
+                pass
+        self.vectorstore = VectorStore(self.embeddings, documents, vectors)
+        return self.vectorstore
 
     def build(self, documents: List[Document]):
         if not documents:
             raise ValueError("Cannot build a vector index with no documents.")
-        if FAISS is None:
-            return self._build_local(documents)
-
-        try:
-            self.vectorstore = FAISS.from_documents(documents, self.embeddings)
-            return self.vectorstore
-        except ImportError:
-            return self._build_local(documents)
+        vectors = self.embeddings.embed_documents([doc.page_content for doc in documents])
+        self.vectorstore = VectorStore(self.embeddings, documents, vectors)
+        return self.vectorstore
 
     def save(self) -> None:
         if self.vectorstore is None:
             raise ValueError("No vectorstore to save.")
         self.index_path.mkdir(parents=True, exist_ok=True)
-        if isinstance(self.vectorstore, LocalVectorStore):
-            np.save(self.index_path / "local_vectors.npy", self.vectorstore.vectors)
-            return
-
-        self.vectorstore.save_local(str(self.index_path))
-
-    def _load_local(self, documents: Optional[List[Document]] = None):
-        vectors_path = self.index_path / "local_vectors.npy"
-        if documents is None or not vectors_path.exists():
-            return None
-        vectors = np.load(vectors_path)
-        self.vectorstore = LocalVectorStore(self.embeddings, documents, vectors)
-        return self.vectorstore
-
-    def _build_local(self, documents: List[Document]) -> LocalVectorStore:
-        vectors = np.array(self.embeddings.embed_documents([doc.page_content for doc in documents]), dtype=np.float32)
-        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        vectors = np.divide(vectors, norms, out=np.zeros_like(vectors), where=norms != 0)
-        self.vectorstore = LocalVectorStore(self.embeddings, documents, vectors)
-        return self.vectorstore
+        np.save(self.index_path / "vectors.npy", self.vectorstore.vectors)
+        with (self.index_path / "documents.pkl").open("wb") as handle:
+            pickle.dump(self.vectorstore.documents, handle)

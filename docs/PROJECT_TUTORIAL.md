@@ -142,7 +142,8 @@ eval_report.md
 项目依赖文件。主要依赖包括：
 
 - `streamlit`：Web Demo。
-- `langchain` / `langchain-community` / `langchain-openai`：RAG 编排和 LLM 调用。
+- `openai`：调用 DeepSeek / OpenAI-compatible Chat Completions API。
+- `sentence-transformers`：加载中文 embedding 模型；云端模型不可用时会自动降级为本地哈希向量。
 - `faiss-cpu`：向量数据库。
 - `rank_bm25`：BM25 稀疏检索。
 - `sentence-transformers`：embedding 模型加载。
@@ -598,7 +599,7 @@ ChatOpenAI(
 )
 ```
 
-因为 DeepSeek 支持 OpenAI-compatible API，所以可以通过 `langchain-openai` 调用。
+因为 DeepSeek 支持 OpenAI-compatible API，所以项目通过 `openai` SDK 的 Chat Completions 接口调用。
 
 Prompt 要求：
 
@@ -1298,4 +1299,3 @@ BAAI/bge-small-zh-v1.5
 一句高级总结：
 
 > 这个项目不是单纯调用大模型问答，而是围绕企业制度知识库构建了完整的 RAG 工程链路，包括结构化文档、metadata、标题分块、混合检索、RRF 融合、引用约束、拒答策略和可复现实验评估。
-

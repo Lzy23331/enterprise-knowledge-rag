@@ -1,28 +1,21 @@
-from collections import defaultdict
 from collections import Counter
+from collections import defaultdict
 import re
 from typing import Dict, Iterable, List, Optional
 
-from langchain_community.retrievers import BM25Retriever
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
+from rank_bm25 import BM25Okapi
+
+from .types import Document
 
 
 class HybridRetriever:
-    def __init__(self, vectorstore: FAISS, chunks: List[Document], default_k: int = 4):
+    def __init__(self, vectorstore, chunks: List[Document], default_k: int = 4):
         self.vectorstore = vectorstore
         self.chunks = chunks
         self.default_k = default_k
         candidate_k = max(default_k * 4, 20)
         self.vector_retriever = vectorstore.as_retriever(search_kwargs={"k": candidate_k})
-        try:
-            self.bm25_retriever = BM25Retriever.from_documents(
-                chunks,
-                k=candidate_k,
-                preprocess_func=KeywordRetriever.tokens,
-            )
-        except ImportError:
-            self.bm25_retriever = KeywordRetriever(chunks, k=candidate_k)
+        self.bm25_retriever = BM25TextRetriever(chunks, k=candidate_k)
 
     def search(
         self,
@@ -157,3 +150,27 @@ class KeywordRetriever:
                 terms.extend(run[index : index + 2] for index in range(len(run) - 1))
                 terms.extend(run[index : index + 3] for index in range(len(run) - 2))
         return terms
+
+
+class BM25TextRetriever:
+    def __init__(self, chunks: List[Document], k: int = 8):
+        self.chunks = chunks
+        self.k = k
+        self.corpus_tokens = [
+            KeywordRetriever.tokens(doc.page_content + " " + " ".join(str(v) for v in doc.metadata.values()))
+            for doc in chunks
+        ]
+        self.bm25 = BM25Okapi(self.corpus_tokens)
+
+    def invoke(self, query: str) -> List[Document]:
+        query_tokens = KeywordRetriever.tokens(query)
+        scores = self.bm25.get_scores(query_tokens)
+        ranked = sorted(range(len(scores)), key=lambda index: scores[index], reverse=True)[: self.k]
+        results: List[Document] = []
+        for index in ranked:
+            if scores[index] <= 0:
+                continue
+            doc = self.chunks[index]
+            doc.metadata["bm25_score"] = round(float(scores[index]), 6)
+            results.append(doc)
+        return results
