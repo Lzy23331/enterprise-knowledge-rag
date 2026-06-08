@@ -38,9 +38,8 @@ http://localhost:8501
 ## Deployment Notes
 
 - `app.py` is the public entrypoint.
-- `requirements.txt` installs Streamlit, optional FAISS, BM25, sentence-transformers, NumPy, and the OpenAI-compatible client package.
+- `requirements.txt` installs the lightweight public-demo dependencies: Streamlit, BM25, NumPy, dotenv, and the OpenAI-compatible client package.
 - `runtime.txt` pins Python 3.12 for managed hosting.
-- The app defaults to vector retrieval and uses FAISS when the package is available; otherwise it falls back to NumPy similarity search.
-- `BAAI/bge-small-zh-v1.5` is downloaded on first startup if not already cached. If the model is unavailable, the app falls back to local hashing vectors so the public demo can still run.
+- The app defaults to vector retrieval. It uses FAISS and `BAAI/bge-small-zh-v1.5` when those optional packages are installed locally, and falls back to local hashing vectors plus NumPy similarity search on Streamlit Cloud.
 - `eval_report.json` is committed so the public demo can show evaluation metrics immediately.
 - `.venv/`, `.cache/`, `.env/`, and `vector_index/` are intentionally ignored.

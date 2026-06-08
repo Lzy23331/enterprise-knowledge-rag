@@ -143,7 +143,7 @@ eval_report.md
 
 - `streamlit`：Web Demo。
 - `openai`：调用 DeepSeek / OpenAI-compatible Chat Completions API。
-- `sentence-transformers`：加载中文 embedding 模型；云端模型不可用时会自动降级为本地哈希向量。
+- `sentence-transformers`：本地可选，用于加载中文 embedding 模型；云端公开 Demo 默认使用本地哈希向量，避免重依赖导致部署超时。
 - `faiss-cpu`：向量数据库。
 - `rank_bm25`：BM25 稀疏检索。
 - `sentence-transformers`：embedding 模型加载。
