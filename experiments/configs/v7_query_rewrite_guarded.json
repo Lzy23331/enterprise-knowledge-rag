@@ -1,0 +1,14 @@
+{
+  "id": "V7",
+  "name": "query_rewrite_metadata_guarded",
+  "stage": "quick",
+  "description": "最终链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "local-hashing",
+  "vector_backend": "numpy",
+  "query_rewrite": true,
+  "metadata_filter": true,
+  "refusal_gate": true,
+  "next_step": "如果接入真实企业数据，应继续做权限过滤、人工反馈回流和 LLM judge 评估。"
+}

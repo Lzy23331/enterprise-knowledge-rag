@@ -69,9 +69,14 @@ class HybridRetriever:
     @staticmethod
     def _doc_aware_order(query: str, docs: List[Document]) -> List[Document]:
         doc_scores = defaultdict(float)
+        best_bm25_rank: Dict[str, int] = {}
         for doc in docs:
             doc_id = str(doc.metadata.get("doc_id", ""))
             doc_scores[doc_id] += float(doc.metadata.get("rrf_score", 0.0))
+            bm25_rank = doc.metadata.get("bm25_rank")
+            if bm25_rank:
+                rank = int(bm25_rank)
+                best_bm25_rank[doc_id] = min(rank, best_bm25_rank.get(doc_id, rank))
 
         for doc in docs:
             doc_id = str(doc.metadata.get("doc_id", ""))
@@ -81,6 +86,9 @@ class HybridRetriever:
                 doc_scores[doc_id] += 1.0
             if process_type and process_type in query:
                 doc_scores[doc_id] += 0.25
+
+        for doc_id, rank in best_bm25_rank.items():
+            doc_scores[doc_id] += 2.0 / rank
 
         return sorted(
             docs,

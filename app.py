@@ -1,21 +1,18 @@
 import json
-import re
-from collections import Counter
+import os
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import streamlit as st
+
+from smart_office_rag.pipeline import EnterpriseKnowledgeRAG
 
 
 st.set_page_config(page_title="SmartOfficeRAG", page_icon="🏢", layout="wide")
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-POLICY_DIR = PROJECT_ROOT / "data" / "policies"
 EVAL_REPORT_PATH = PROJECT_ROOT / "eval_report.json"
-APP_VERSION = "cloud-lite-v2"
-
-FRONT_MATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
-HEADER_PATTERN = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
+EXPERIMENT_REPORT_PATH = PROJECT_ROOT / "experiments" / "results" / "experiment_report.json"
+APP_VERSION = "portfolio-rag-v3"
 
 
 EXAMPLE_QUESTIONS = {
@@ -37,364 +34,240 @@ EXAMPLE_QUESTIONS = {
     "拒答测试": [
         "公司股票什么时候可以买入？",
         "员工停车位摇号规则是什么？",
+        "公司是否报销私人健身卡？",
     ],
 }
 
-OUT_OF_SCOPE_TERMS = (
-    "股票",
-    "子女",
-    "入学",
-    "宠物",
-    "购房",
-    "健身卡",
-    "永久居留",
-    "团建",
-    "购车",
-    "宿舍装修",
-    "食堂菜单",
-    "投资供应商",
-    "宠物医疗",
-    "婚礼礼金",
-    "未公开财报",
-    "旅游签证",
-    "咖啡券",
-    "停车位",
-    "内推奖金",
-    "年会抽奖",
-    "生日礼物",
-    "水电费",
-)
 
-
-def parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
-    match = FRONT_MATTER_PATTERN.match(text)
-    if not match:
-        return {}, text
-
-    metadata: Dict[str, str] = {}
-    for line in match.group(1).splitlines():
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        metadata[key.strip()] = value.strip().strip('"')
-    return metadata, text[match.end():]
-
-
-def split_markdown(content: str) -> List[Dict[str, str]]:
-    matches = list(HEADER_PATTERN.finditer(content))
-    if not matches:
-        return [{"section": "正文", "content": content.strip()}]
-
-    chunks = []
-    current_sections: Dict[int, str] = {}
-    for index, match in enumerate(matches):
-        level = len(match.group(1))
-        title = match.group(2).strip()
-        start = match.start()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(content)
-        text = content[start:end].strip()
-        if not text:
-            continue
-
-        current_sections[level] = title
-        for deeper_level in range(level + 1, 4):
-            current_sections.pop(deeper_level, None)
-
-        section = current_sections.get(3) or current_sections.get(2) or current_sections.get(1) or title
-        chunks.append({"section": section, "content": text})
-    return chunks
-
-
-def tokens(text: str) -> Counter:
-    result = []
-    result.extend(re.findall(r"[A-Za-z0-9_]+", text.lower()))
-    for run in re.findall(r"[\u4e00-\u9fff]+", text):
-        if len(run) == 1:
-            result.append(run)
-        else:
-            result.extend(run[index : index + 2] for index in range(len(run) - 1))
-            result.extend(run[index : index + 3] for index in range(len(run) - 2))
-    return Counter(result)
-
-
-@st.cache_data(show_spinner="正在加载企业知识库...")
-def load_knowledge_base() -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
-    parents: List[Dict[str, str]] = []
-    chunks: List[Dict[str, str]] = []
-
-    for path in sorted(POLICY_DIR.glob("*.md")):
-        raw_text = path.read_text(encoding="utf-8")
-        metadata, content = parse_front_matter(raw_text)
-        doc_id = metadata.get("doc_id") or path.stem
-        title = metadata.get("title", path.stem)
-        parent = {
-            **metadata,
-            "doc_id": doc_id,
-            "title": title,
-            "source_file": path.name,
-        }
-        parents.append(parent)
-
-        for index, chunk in enumerate(split_markdown(content)):
-            citation = f"《{title}》{chunk['section']}"
-            chunk_record = {
-                **parent,
-                "chunk_id": f"{doc_id}-{index + 1}",
-                "chunk_index": index,
-                "section": chunk["section"],
-                "citation": citation,
-                "content": chunk["content"],
-            }
-            chunk_record["search_text"] = " ".join(
-                str(chunk_record.get(key, ""))
-                for key in ("title", "department", "process_type", "risk_level", "section", "content")
-            )
-            chunks.append(chunk_record)
-
-    return parents, chunks
+@st.cache_resource(show_spinner="正在加载完整 RAG 知识库...")
+def load_rag() -> EnterpriseKnowledgeRAG:
+    rag = EnterpriseKnowledgeRAG()
+    rag.initialize()
+    return rag
 
 
 @st.cache_data
-def load_eval_summary() -> dict:
+def load_eval_report() -> dict:
     if not EVAL_REPORT_PATH.exists():
         return {}
     try:
-        return json.loads(EVAL_REPORT_PATH.read_text(encoding="utf-8")).get("summary", {})
+        return json.loads(EVAL_REPORT_PATH.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
 
-def filter_options(chunks: List[Dict[str, str]]) -> Dict[str, List[str]]:
-    options = {"department": ["全部"], "process_type": ["全部"], "risk_level": ["全部"]}
-    for key in options:
-        values = sorted({str(chunk.get(key)) for chunk in chunks if chunk.get(key)})
-        options[key].extend(values)
-    return options
+@st.cache_data
+def load_experiment_report(report_mtime: float = 0.0) -> dict:
+    if not EXPERIMENT_REPORT_PATH.exists():
+        return {}
+    try:
+        return json.loads(EXPERIMENT_REPORT_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
 
-def matches_filters(chunk: Dict[str, str], filters: Dict[str, str]) -> bool:
-    for key, value in filters.items():
-        if not value or value == "全部":
-            continue
-        if str(chunk.get(key, "")) != value:
-            return False
-    return True
+def normalize_filter(value: str) -> str:
+    return "" if value == "全部" else value
 
 
-def search(question: str, chunks: List[Dict[str, str]], filters: Dict[str, str], top_k: int = 5) -> List[Dict[str, str]]:
-    query_terms = tokens(question)
-    scored = []
-    for chunk in chunks:
-        if not matches_filters(chunk, filters):
-            continue
-        chunk_terms = tokens(chunk["search_text"])
-        overlap = sum((query_terms & chunk_terms).values())
-        title_bonus = 8 if chunk.get("title") and chunk["title"] in question else 0
-        process_bonus = 4 if chunk.get("process_type") and chunk["process_type"] in question else 0
-        section_bonus = 2 if any(term in chunk.get("section", "") for term in ("办理步骤", "所需材料", "审批 SLA", "注意事项")) else 0
-        score = overlap + title_bonus + process_bonus + section_bonus
-        if score > 0:
-            scored.append((score, chunk))
+def render_strategy_report(report: dict) -> None:
+    strategies = report.get("strategy_comparison", [])
+    if not strategies:
+        st.info("尚未生成检索策略对比。运行 `python evaluate.py` 后会显示 BM25、向量、混合检索与 LLM 直答基线。")
+        return
 
-    scored.sort(
-        key=lambda item: (
-            item[0],
-            item[1].get("title", "") in question,
-            -int(item[1].get("chunk_index", 0)),
-        ),
-        reverse=True,
-    )
-    results = []
-    for rank, (score, chunk) in enumerate(scored[:top_k], 1):
-        result = dict(chunk)
-        result["keyword_score"] = score
-        result["rank"] = rank
-        results.append(result)
-    return results
+    rows = []
+    for item in strategies:
+        rows.append(
+            {
+                "策略": item.get("strategy"),
+                "Hit@5": round(item.get("hit_at_5", 0), 3),
+                "MRR@5": round(item.get("mrr_at_5", 0), 3),
+                "引用准确": round(item.get("citation_accuracy", 0), 3),
+                "拒答准确": round(item.get("refusal_accuracy", 0), 3),
+                "p95(ms)": round(item.get("latency_p95_ms", 0), 1),
+            }
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
-def prioritize_answer_chunks(question: str, chunks: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    def section_score(chunk: Dict[str, str]) -> int:
-        section = chunk.get("section", "")
-        value = int(chunk.get("keyword_score", 0))
-        if "办理步骤" in section and any(term in question for term in ("步骤", "流程", "怎么办", "如何", "哪个系统", "系统提交")):
-            value += 40
-        if "所需材料" in section and any(term in question for term in ("材料", "资料", "需要哪些")):
-            value += 40
-        if "审批 SLA" in section and any(term in question for term in ("时限", "多久", "提前", "SLA")):
-            value += 40
-        if "注意事项" in section and any(term in question for term in ("风险", "注意", "合规")):
-            value += 40
-        return value
+def render_experiment_report(report: dict) -> None:
+    results = report.get("results", [])
+    selected = report.get("selected_summary", {})
+    if not results:
+        st.info("尚未生成实验历程报告。运行 `python run_experiments.py --quick` 或 `python run_experiments.py --full` 后会显示。")
+        return
 
-    return sorted(chunks, key=section_score, reverse=True)
+    if selected:
+        cols = st.columns(4)
+        selected_label = selected.get("id", "N/A")
+        embedding = selected.get("embedding_model")
+        if embedding:
+            selected_label = f"{selected_label} / {embedding}"
+        cols[0].metric("选定版本", selected_label)
+        cols[1].metric("Answer Acc.", f"{selected.get('answer_accuracy_proxy', 0):.3f}")
+        cols[2].metric("Citation Acc.", f"{selected.get('citation_accuracy', 0):.3f}")
+        cols[3].metric("Refusal Acc.", f"{selected.get('refusal_accuracy', 0):.3f}")
 
-
-def no_evidence_answer() -> str:
-    return (
-        "结论：\n"
-        "当前知识库没有检索到明确依据，建议联系对应负责部门确认。\n\n"
-        "办理/处理步骤：\n"
-        "1. 确认问题所属部门。\n"
-        "2. 联系 HR、财务、IT、信息安全或对应制度负责人。\n\n"
-        "所需材料：\n"
-        "- 暂无明确依据。\n\n"
-        "注意事项：\n"
-        "- 不建议在没有制度依据的情况下自行处理。\n\n"
-        "引用来源：\n"
-        "- 未检索到可引用来源。"
-    )
-
-
-def clean_snippet_text(text: str, max_chars: int = 360) -> str:
-    lines = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        stripped = re.sub(r"^#{1,6}\s*", "", stripped)
-        lines.append(stripped)
-    return " ".join(lines)[:max_chars]
+    rows = []
+    for result in results:
+        config = result.get("config", {})
+        summary = result.get("summary", {})
+        rows.append(
+            {
+                "版本": config.get("id"),
+                "实验": config.get("name"),
+                "状态": result.get("status"),
+                "分块": config.get("chunk_strategy"),
+                "Embedding": config.get("embedding_model"),
+                "检索": config.get("retriever"),
+                "Answer Acc.": round(summary.get("answer_accuracy_proxy", 0), 3) if summary else None,
+                "Hit@5": round(summary.get("hit_at_5", 0), 3) if summary else None,
+                "引用准确": round(summary.get("citation_accuracy", 0), 3) if summary else None,
+                "拒答准确": round(summary.get("refusal_accuracy", 0), 3) if summary else None,
+                "p95(ms)": round(summary.get("latency_p95_ms", 0), 1) if summary else None,
+            }
+        )
+    st.dataframe(rows, hide_index=True, use_container_width=True)
 
 
-def generate_answer(question: str, retrieved: List[Dict[str, str]]) -> str:
-    if not retrieved or any(term in question for term in OUT_OF_SCOPE_TERMS):
-        return no_evidence_answer()
-
-    primary_doc_id = retrieved[0].get("doc_id")
-    same_doc_chunks = [chunk for chunk in retrieved if chunk.get("doc_id") == primary_doc_id] or retrieved[:1]
-    answer_chunks = prioritize_answer_chunks(question, same_doc_chunks)
-
-    snippets = []
-    for chunk in answer_chunks[:3]:
-        snippets.append(clean_snippet_text(chunk["content"]))
-
-    citations = []
-    for chunk in answer_chunks[:4]:
-        citation = chunk.get("citation", "未知来源")
-        if citation not in citations:
-            citations.append(citation)
-
-    primary = retrieved[0]
-    return (
-        "结论：\n"
-        f"根据知识库，最相关的制度是《{primary.get('title', '未知文档')}》，"
-        f"问题主要涉及{primary.get('process_type', '相关流程')}。\n\n"
-        "办理/处理步骤：\n"
-        + "\n".join(f"{index + 1}. {snippet}" for index, snippet in enumerate(snippets))
-        + "\n\n所需材料：\n"
-        "- 请参考下方引用来源中的“所需材料”章节。\n"
-        "- 若涉及高风险流程，请补充主管、系统负责人或信息安全审批记录。\n\n"
-        "注意事项：\n"
-        f"- 风险等级：{primary.get('risk_level', '未知')}。\n"
-        "- 公开演示站点使用轻量本地检索与抽取式回答；完整项目代码保留了向量索引、混合检索和评估模块。\n\n"
-        "引用来源：\n"
-        + "\n".join(f"- {citation}" for citation in citations)
-    )
+def render_chunk(index: int, doc) -> None:
+    title = doc.metadata.get("citation", "未知来源")
+    with st.expander(f"{index}. {title}"):
+        st.write(doc.page_content)
+        st.json(
+            {
+                "doc_id": doc.metadata.get("doc_id"),
+                "section": doc.metadata.get("section"),
+                "department": doc.metadata.get("department"),
+                "process_type": doc.metadata.get("process_type"),
+                "risk_level": doc.metadata.get("risk_level"),
+                "vector_rank": doc.metadata.get("vector_rank"),
+                "vector_score": doc.metadata.get("vector_score"),
+                "bm25_rank": doc.metadata.get("bm25_rank"),
+                "bm25_score": doc.metadata.get("bm25_score"),
+                "keyword_score": doc.metadata.get("keyword_score"),
+                "rrf_score": doc.metadata.get("rrf_score"),
+                "source_file": doc.metadata.get("source_file"),
+            }
+        )
 
 
 def main() -> None:
-    st.title("SmartOfficeRAG 企业员工服务知识库助手")
-    st.caption("面向 HR、财务、IT、安全、行政、法务、采购、审计与运营流程的可溯源 RAG Demo")
+    st.title("SmartOfficeRAG：企业内部制度知识问答系统")
+    st.caption("面向 HR、财务、IT、安全、法务、采购、行政、审计等制度咨询场景的可评估 RAG Demo")
 
     if "question" not in st.session_state:
         st.session_state["question"] = EXAMPLE_QUESTIONS["HR / 财务"][0]
 
-    parents, chunks = load_knowledge_base()
-    eval_summary = load_eval_summary()
-    options = filter_options(chunks)
+    rag = load_rag()
+    report = load_eval_report()
+    experiment_report_mtime = EXPERIMENT_REPORT_PATH.stat().st_mtime if EXPERIMENT_REPORT_PATH.exists() else 0.0
+    experiment_report = load_experiment_report(experiment_report_mtime)
+    summary = report.get("summary", {})
+    filter_options = rag.get_filter_options()
 
-    status_cols = st.columns(5)
-    status_cols[0].metric("制度文档", len(parents))
-    status_cols[1].metric("检索片段", len(chunks))
-    status_cols[2].metric("评估问题", eval_summary.get("total", 0) if eval_summary else 0)
-    status_cols[3].metric("Hit@5", f"{eval_summary.get('hit_at_5', 0):.3f}" if eval_summary else "N/A")
-    status_cols[4].metric("拒答准确", f"{eval_summary.get('refusal_accuracy', 0):.3f}" if eval_summary else "N/A")
-    st.caption(f"版本：{APP_VERSION} | 云端模式：轻量检索 Demo | 入口文件：app.py")
+    cols = st.columns(6)
+    cols[0].metric("制度文档", len(rag.parents))
+    cols[1].metric("检索片段", len(rag.chunks))
+    cols[2].metric("评估问题", summary.get("total", 0) or "N/A")
+    cols[3].metric("Hit@5", f"{summary.get('hit_at_5', 0):.3f}" if summary else "N/A")
+    cols[4].metric("引用准确", f"{summary.get('citation_accuracy', 0):.3f}" if summary else "N/A")
+    cols[5].metric("p95 延迟", f"{summary.get('latency_p95_ms', 0):.1f} ms" if summary else "N/A")
+
+    st.caption(
+        f"版本：{APP_VERSION} | 检索链路：向量召回 + BM25 + RRF + 低置信拒答 | "
+        f"LLM：{'已配置' if os.getenv('DEEPSEEK_API_KEY') or os.getenv('OPENAI_API_KEY') else '未配置，使用本地抽取式兜底'}"
+    )
 
     with st.sidebar:
         if st.button("重新加载知识库", use_container_width=True):
+            st.cache_resource.clear()
             st.cache_data.clear()
             st.rerun()
 
-        st.divider()
-        st.header("知识库概览")
-        st.metric("制度文档", len(parents))
-        st.metric("检索片段", len(chunks))
-        if eval_summary:
-            st.metric("评估问题", eval_summary.get("total", 0))
-            col_a, col_b = st.columns(2)
-            col_a.metric("Hit@5", f"{eval_summary.get('hit_at_5', 0):.3f}")
-            col_b.metric("MRR@5", f"{eval_summary.get('mrr_at_5', 0):.3f}")
-            col_c, col_d = st.columns(2)
-            col_c.metric("引用准确", f"{eval_summary.get('citation_accuracy', 0):.3f}")
-            col_d.metric("拒答准确", f"{eval_summary.get('refusal_accuracy', 0):.3f}")
+        st.header("业务目标")
+        st.write("减少重复制度咨询，提升政策答案可追溯性，并用拒答机制降低知识库外幻觉。")
 
         st.divider()
         st.header("检索过滤")
-        department = st.selectbox("部门", options["department"])
-        process_type = st.selectbox("流程类型", options["process_type"])
-        risk_level = st.selectbox("风险等级", options["risk_level"])
+        department = st.selectbox("部门", filter_options["department"])
+        process_type = st.selectbox("流程类型", filter_options["process_type"])
+        risk_level = st.selectbox("风险等级", filter_options["risk_level"])
 
         st.divider()
-        st.write("示例问题")
+        st.header("示例问题")
         for group, questions in EXAMPLE_QUESTIONS.items():
             with st.expander(group, expanded=group == "HR / 财务"):
                 for sample_question in questions:
                     if st.button(sample_question, use_container_width=True):
                         st.session_state["question"] = sample_question
 
-    question = st.text_area(
-        "请输入员工问题",
-        key="question",
-        height=100,
-    )
+    question = st.text_area("请输入员工问题", key="question", height=110)
 
     filters = {
-        "department": department,
-        "process_type": process_type,
-        "risk_level": risk_level,
+        "department": normalize_filter(department),
+        "process_type": normalize_filter(process_type),
+        "risk_level": normalize_filter(risk_level),
     }
+    filters = {key: value for key, value in filters.items() if value}
 
     if st.button("生成回答", type="primary"):
-        retrieved = search(question, chunks, filters=filters, top_k=5)
-        answer = generate_answer(question, retrieved)
+        with st.spinner("正在执行 metadata 过滤、混合检索、RRF 融合和可信生成..."):
+            response = rag.ask(question, filters=filters)
 
-        st.subheader("回答")
-        st.markdown(answer)
+        answer_col, trace_col = st.columns([2, 1])
+        with answer_col:
+            st.subheader("回答")
+            st.markdown(response.answer)
+
+        with trace_col:
+            st.subheader("链路状态")
+            st.metric("端到端耗时", f"{response.latency_ms:.1f} ms")
+            st.metric("召回片段", len(response.chunks))
+            st.metric("是否拒答", "是" if response.refused else "否")
+            if response.refusal_reason:
+                st.warning(response.refusal_reason)
+            st.json(response.retrieval_trace)
 
         st.subheader("引用来源")
-        if retrieved and not any(term in question for term in OUT_OF_SCOPE_TERMS):
-            seen = set()
-            for chunk in retrieved:
-                citation = chunk.get("citation", "未知来源")
-                if citation in seen:
-                    continue
-                seen.add(citation)
+        if response.sources:
+            for source in response.sources:
                 st.markdown(
-                    f"- **{citation}** | {chunk.get('department', '未知')} | "
-                    f"{chunk.get('process_type', '未知')} | {chunk.get('doc_id', '未知ID')} | "
-                    f"风险等级：{chunk.get('risk_level', '未知')} | 更新时间：{chunk.get('updated_at', '未知')}"
+                    f"- **{source['citation']}** | {source['department']} | "
+                    f"{source['process_type']} | {source['doc_id']} | 风险等级：{source['risk_level']} | "
+                    f"更新时间：{source['updated_at']}"
                 )
         else:
             st.info("没有检索到可引用来源。")
 
-        st.subheader("检索片段")
-        for index, chunk in enumerate(retrieved, 1):
-            with st.expander(f"{index}. {chunk.get('citation', '未知来源')}"):
-                st.write(chunk["content"])
-                st.json(
+        st.subheader("检索片段与分数")
+        for index, doc in enumerate(response.chunks, 1):
+            render_chunk(index, doc)
+
+    st.divider()
+    with st.expander("离线评估与策略对比", expanded=False):
+        render_strategy_report(report)
+        failures = report.get("failure_cases", [])
+        if failures:
+            st.write("Top failure cases")
+            st.dataframe(
+                [
                     {
-                        "department": chunk.get("department"),
-                        "process_type": chunk.get("process_type"),
-                        "risk_level": chunk.get("risk_level"),
-                        "doc_id": chunk.get("doc_id"),
-                        "section": chunk.get("section"),
-                        "keyword_score": chunk.get("keyword_score"),
-                        "rank": chunk.get("rank"),
-                        "source_file": chunk.get("source_file"),
+                        "id": case.get("id"),
+                        "type": case.get("question_type"),
+                        "question": case.get("question"),
+                        "expected": ", ".join(case.get("expected_doc_ids", [])),
+                        "retrieved": ", ".join(case.get("retrieved_doc_ids", [])),
                     }
-                )
+                    for case in failures[:10]
+                ],
+                hide_index=True,
+                use_container_width=True,
+            )
+
+    with st.expander("研发迭代实验历程", expanded=False):
+        render_experiment_report(experiment_report)
 
 
 if __name__ == "__main__":

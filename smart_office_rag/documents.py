@@ -25,8 +25,17 @@ def _parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
 
 
 class PolicyDocumentLoader:
-    def __init__(self, data_path: Path):
+    def __init__(
+        self,
+        data_path: Path,
+        chunk_strategy: str = "markdown_headers",
+        fixed_chunk_size: int = 900,
+        fixed_chunk_overlap: int = 120,
+    ):
         self.data_path = Path(data_path)
+        self.chunk_strategy = chunk_strategy
+        self.fixed_chunk_size = fixed_chunk_size
+        self.fixed_chunk_overlap = fixed_chunk_overlap
 
     def load_parent_documents(self) -> List[Document]:
         if not self.data_path.exists():
@@ -52,7 +61,18 @@ class PolicyDocumentLoader:
     def split_documents(self, documents: List[Document]) -> List[Document]:
         chunks: List[Document] = []
         for parent in documents:
-            split_docs = self._split_markdown_by_headers(parent.page_content)
+            if self.chunk_strategy == "whole_document":
+                split_docs = [Document(page_content=parent.page_content, metadata={"section_1": parent.metadata.get("title", "全文")})]
+            elif self.chunk_strategy == "fixed_window":
+                split_docs = self._split_fixed_window(
+                    parent.page_content,
+                    chunk_size=self.fixed_chunk_size,
+                    overlap=self.fixed_chunk_overlap,
+                )
+            elif self.chunk_strategy == "markdown_headers":
+                split_docs = self._split_markdown_by_headers(parent.page_content)
+            else:
+                raise ValueError(f"Unsupported chunk strategy: {self.chunk_strategy}")
 
             for index, chunk in enumerate(split_docs):
                 section = (
@@ -105,4 +125,37 @@ class PolicyDocumentLoader:
             if 3 in current_sections:
                 metadata["section_3"] = current_sections[3]
             documents.append(Document(page_content=content, metadata=metadata))
+        return documents
+
+    @staticmethod
+    def _split_fixed_window(text: str, chunk_size: int = 900, overlap: int = 120) -> List[Document]:
+        cleaned = "\n".join(line.rstrip() for line in text.splitlines()).strip()
+        if not cleaned:
+            return []
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive.")
+        if overlap < 0 or overlap >= chunk_size:
+            raise ValueError("overlap must be non-negative and smaller than chunk_size.")
+
+        documents: List[Document] = []
+        start = 0
+        index = 1
+        while start < len(cleaned):
+            end = min(len(cleaned), start + chunk_size)
+            content = cleaned[start:end].strip()
+            if content:
+                documents.append(
+                    Document(
+                        page_content=content,
+                        metadata={
+                            "section_1": f"固定窗口片段 {index}",
+                            "window_start": start,
+                            "window_end": end,
+                        },
+                    )
+                )
+            if end >= len(cleaned):
+                break
+            start = end - overlap
+            index += 1
         return documents

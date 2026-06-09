@@ -1,0 +1,14 @@
+{
+  "id": "V4-e5",
+  "name": "vector_multilingual_e5_faiss",
+  "stage": "full",
+  "description": "intfloat/multilingual-e5-small + FAISS，测试多语言 embedding 在中文制度问答中的表现。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "vector_only",
+  "embedding_model": "intfloat/multilingual-e5-small",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "结合准确率、延迟、模型大小和部署可用性选择 embedding。"
+}

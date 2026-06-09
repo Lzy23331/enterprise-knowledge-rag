@@ -11,7 +11,7 @@ os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
 class RAGConfig:
     data_path: Path = PROJECT_ROOT / "data" / "policies"
     index_path: Path = PROJECT_ROOT / "vector_index"
-    embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    embedding_model: str = os.getenv("SMARTOFFICE_EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
     top_k: int = 5
     llm_model: str = "deepseek-chat"
     llm_base_url: str = "https://api.deepseek.com"

@@ -1,0 +1,14 @@
+{
+  "id": "V5",
+  "name": "bm25_vector_rrf_numpy",
+  "stage": "quick",
+  "description": "BM25 + local hashing 向量召回 + RRF 融合，验证混合检索收益。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "local-hashing",
+  "vector_backend": "numpy",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "融合后仍可能召回知识库外相近制度，需要低置信拒答和业务规则。"
+}

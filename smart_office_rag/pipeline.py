@@ -1,6 +1,7 @@
 from collections import Counter
 from dataclasses import dataclass
 import re
+import time
 from typing import Dict, List, Optional
 
 from .config import DEFAULT_CONFIG, RAGConfig
@@ -17,6 +18,10 @@ class RAGResponse:
     answer: str
     sources: List[Dict[str, str]]
     chunks: List[Document]
+    retrieval_trace: Dict[str, object]
+    latency_ms: float
+    refused: bool
+    refusal_reason: str = ""
 
 
 class EnterpriseKnowledgeRAG:
@@ -79,22 +84,58 @@ class EnterpriseKnowledgeRAG:
             self.retriever = KeywordFallbackRetriever(self.chunks, default_k=self.config.top_k)
 
     def ask(self, question: str, filters: Optional[Dict[str, str]] = None) -> RAGResponse:
+        started = time.perf_counter()
         if self.retriever is None:
             self.initialize()
 
         assert self.retriever is not None
+        trace: Dict[str, object] = {
+            "strategy": "metadata filter -> vector topN + BM25 topN -> RRF -> primary document expansion -> confidence gate -> generation",
+            "filters": filters or {},
+            "top_k": self.config.top_k,
+            "vector_index_enabled": self.config.use_vector_index,
+            "llm_enabled": self.generator.client is not None,
+            "cost_controls": [
+                "Embedding cache and persisted vector index are reused between runs.",
+                "Low-confidence and out-of-scope questions skip the LLM call.",
+                "Local extractive fallback is used when no API key is configured.",
+            ],
+        }
         if self._is_out_of_scope(question):
-            answer = self.generator.generate(question, [])
-            return RAGResponse(answer=answer, sources=[], chunks=[])
+            answer = self.generator.generate_no_evidence(question, [], reason="out_of_scope")
+            return RAGResponse(
+                answer=answer,
+                sources=[],
+                chunks=[],
+                retrieval_trace={**trace, "refusal_reason": "out_of_scope"},
+                latency_ms=(time.perf_counter() - started) * 1000,
+                refused=True,
+                refusal_reason="问题不属于当前企业制度知识库覆盖范围。",
+            )
 
         chunks = self.retriever.search(question, top_k=self.config.top_k, filters=filters)
         if self._is_low_confidence(question, chunks):
-            answer = self.generator.generate(question, [])
-            return RAGResponse(answer=answer, sources=[], chunks=[])
+            answer = self.generator.generate_no_evidence(question, chunks[:3], reason="low_confidence")
+            return RAGResponse(
+                answer=answer,
+                sources=self._build_sources(chunks[:3]),
+                chunks=chunks,
+                retrieval_trace={**trace, "refusal_reason": "low_confidence", "retrieved_chunks": len(chunks)},
+                latency_ms=(time.perf_counter() - started) * 1000,
+                refused=True,
+                refusal_reason="最高相关片段与问题重合度不足，系统选择拒答以避免编造制度。",
+            )
 
         answer = self.generator.generate(question, chunks)
         source_chunks = self._answer_source_chunks(question, chunks)
-        return RAGResponse(answer=answer, sources=self._build_sources(source_chunks), chunks=chunks)
+        return RAGResponse(
+            answer=answer,
+            sources=self._build_sources(source_chunks),
+            chunks=chunks,
+            retrieval_trace={**trace, "retrieved_chunks": len(chunks), "refusal_reason": ""},
+            latency_ms=(time.perf_counter() - started) * 1000,
+            refused=False,
+        )
 
     def _answer_source_chunks(self, question: str, chunks: List[Document]) -> List[Document]:
         if not chunks:

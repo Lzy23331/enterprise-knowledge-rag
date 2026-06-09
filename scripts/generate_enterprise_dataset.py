@@ -167,6 +167,26 @@ def build_eval_cases() -> list[dict]:
                     "department": department,
                     "should_refuse": False,
                 },
+                {
+                    "id": f"{base_id}_paraphrase",
+                    "question": f"我想咨询{scope.split('、')[0]}相关事项，应该看哪份制度、走哪个入口？",
+                    "expected_doc_ids": [doc_id],
+                    "expected_sections": ["适用对象", "办理步骤"],
+                    "reference_answer": f"应参考《{title}》，在{system}选择“{process_type}”流程，并按制度要求提交 {form}。",
+                    "question_type": "同义改写类",
+                    "department": department,
+                    "should_refuse": False,
+                },
+                {
+                    "id": f"{base_id}_ambiguous_followup",
+                    "question": f"{process_type}材料不齐被退回后怎么处理，是否可以线下先办？",
+                    "expected_doc_ids": [doc_id],
+                    "expected_sections": ["审批 SLA 与例外流程", "常见问题", "注意事项"],
+                    "reference_answer": f"应按退回原因补充材料后重新提交；材料缺失时从补齐后重新计算审批时限，不得绕过{system}线下审批。",
+                    "question_type": "模糊追问类",
+                    "department": department,
+                    "should_refuse": False,
+                },
             ]
         )
 

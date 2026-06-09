@@ -1,0 +1,14 @@
+{
+  "id": "V3",
+  "name": "bm25_header_chunk",
+  "stage": "quick",
+  "description": "Markdown 标题层级分块 + BM25，保留制度章节结构，提高引用可解释性。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "bm25_only",
+  "embedding_model": "none",
+  "vector_backend": "none",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "BM25 对精确词效果好，但同义问法和模糊问法仍需要语义召回。"
+}

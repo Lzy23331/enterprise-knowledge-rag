@@ -1,0 +1,14 @@
+{
+  "id": "V1",
+  "name": "keyword_whole_document",
+  "stage": "quick",
+  "description": "整文档粒度的关键词检索，验证最小知识库检索是否能命中文档。",
+  "chunk_strategy": "whole_document",
+  "retriever": "keyword_only",
+  "embedding_model": "none",
+  "vector_backend": "none",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "整文档会导致引用章节粗、上下文噪声大，因此需要测试更细的 chunk。"
+}

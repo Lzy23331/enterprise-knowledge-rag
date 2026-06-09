@@ -1,0 +1,15 @@
+{
+  "id": "V6-e5",
+  "name": "hybrid_multilingual_e5_faiss_guarded",
+  "stage": "full",
+  "description": "intfloat/multilingual-e5-small + BM25 + RRF + 低置信拒答，测试多语言 embedding 在中文制度问答中的可用性。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "intfloat/multilingual-e5-small",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "final_candidate": true,
+  "next_step": "如果中文效果不如 bge 系列，则保留为多语言场景备选而非中文主链路。"
+}

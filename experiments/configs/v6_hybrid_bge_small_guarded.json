@@ -1,0 +1,15 @@
+{
+  "id": "V6-bge-small",
+  "name": "hybrid_bge_small_faiss_guarded",
+  "stage": "full",
+  "description": "BAAI/bge-small-zh-v1.5 + BM25 + RRF + 低置信拒答，测试轻量中文 embedding 在最终链路中的表现。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "final_candidate": true,
+  "next_step": "与 bge-base/e5 的同类 hybrid 配置比较准确率、引用准确率、拒答准确率和延迟。"
+}

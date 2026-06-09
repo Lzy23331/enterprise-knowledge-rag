@@ -1,0 +1,14 @@
+{
+  "id": "V4",
+  "name": "vector_local_hashing_numpy",
+  "stage": "quick",
+  "description": "本地 hashing embedding + NumPy 向量检索，用作可复现的轻量语义召回基线。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "vector_only",
+  "embedding_model": "local-hashing",
+  "vector_backend": "numpy",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "单向量召回对业务关键词不稳定，需要和 BM25 融合。"
+}

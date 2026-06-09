@@ -8,10 +8,7 @@ import numpy as np
 
 from .types import Document
 
-try:
-    from sentence_transformers import SentenceTransformer
-except Exception:
-    SentenceTransformer = None
+SentenceTransformer = None
 
 try:
     import faiss
@@ -24,11 +21,25 @@ class EmbeddingModel:
         self.model_name = model_name
         self.fallback_dim = fallback_dim
         self.model = None
+        self.used_fallback = model_name == "local-hashing"
+        if model_name == "local-hashing":
+            return
+        global SentenceTransformer
+        if SentenceTransformer is None:
+            try:
+                from sentence_transformers import SentenceTransformer as LoadedSentenceTransformer
+
+                SentenceTransformer = LoadedSentenceTransformer
+            except Exception as exc:
+                print(f"Embedding library is unavailable, falling back to local hashing vectors: {exc}")
+                self.used_fallback = True
+                return
         if SentenceTransformer is not None:
             try:
                 self.model = SentenceTransformer(model_name)
             except Exception as exc:
                 print(f"Embedding model is unavailable, falling back to local hashing vectors: {exc}")
+                self.used_fallback = True
 
     def embed_documents(self, texts: List[str]) -> np.ndarray:
         if self.model is not None:

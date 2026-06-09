@@ -1,0 +1,14 @@
+{
+  "id": "V4-bge-small",
+  "name": "vector_bge_small_zh_faiss",
+  "stage": "full",
+  "description": "BAAI/bge-small-zh-v1.5 + FAISS，测试中文轻量 embedding 的语义召回表现。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "vector_only",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "对比更大中文 embedding 和多语言 embedding 的召回质量与耗时。"
+}

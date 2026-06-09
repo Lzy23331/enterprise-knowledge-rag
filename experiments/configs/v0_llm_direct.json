@@ -1,0 +1,14 @@
+{
+  "id": "V0",
+  "name": "llm_direct_no_retrieval",
+  "stage": "quick",
+  "description": "无知识库直答基线，用于暴露不可追溯和知识库外问题无法拒答的问题。",
+  "chunk_strategy": "none",
+  "retriever": "llm_direct",
+  "embedding_model": "none",
+  "vector_backend": "none",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "next_step": "引入企业制度知识库和最小检索链路，先解决答案来源不可追溯问题。"
+}

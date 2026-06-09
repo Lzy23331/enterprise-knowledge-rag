@@ -52,6 +52,9 @@ class AnswerGenerator:
 
     @staticmethod
     def _get_api_key() -> Optional[str]:
+        if os.getenv("SMARTOFFICE_DISABLE_LLM", "0") == "1":
+            return None
+
         api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
         if api_key:
             return api_key
@@ -65,7 +68,7 @@ class AnswerGenerator:
 
     def generate(self, question: str, docs: List[Document]) -> str:
         if not docs:
-            return self._no_evidence_answer()
+            return self.generate_no_evidence(question, [])
 
         if self.client is None:
             return self._extractive_answer(question, docs)
@@ -110,19 +113,36 @@ class AnswerGenerator:
         return "\n\n".join(parts)
 
     @staticmethod
-    def _no_evidence_answer() -> str:
+    def generate_no_evidence(question: str, docs: List[Document], reason: str = "no_evidence") -> str:
+        reason_text = {
+            "out_of_scope": "问题不属于当前模拟企业制度知识库覆盖范围。",
+            "low_confidence": "系统检索到的片段相关度不足，无法形成可靠制度依据。",
+            "no_evidence": "当前知识库没有检索到明确制度依据。",
+        }.get(reason, "当前知识库没有检索到明确制度依据。")
+
+        nearby = []
+        for doc in docs[:3]:
+            citation = doc.metadata.get("citation", "未知来源")
+            department = doc.metadata.get("department", "未知部门")
+            risk_level = doc.metadata.get("risk_level", "未知")
+            if citation not in nearby:
+                nearby.append(f"- {citation}（{department}，风险等级：{risk_level}）")
+        nearby_text = "\n".join(nearby) if nearby else "- 未检索到可引用来源。"
+
         return (
             "结论：\n"
-            "当前知识库没有检索到明确依据，建议联系对应负责部门确认。\n\n"
+            f"{reason_text}建议联系对应负责部门确认，不应基于模型猜测直接办理。\n\n"
             "办理/处理步骤：\n"
-            "1. 确认问题所属部门。\n"
-            "2. 联系 HR、财务、IT、信息安全或对应制度负责人。\n\n"
+            "1. 先确认问题所属部门、流程类型和是否涉及资金、合同、客户数据或生产系统。\n"
+            "2. 联系 HR、财务、IT、信息安全、法务、采购、行政或内审等对应制度负责人。\n"
+            "3. 如果属于紧急事项，先保留沟通记录，再按制度负责人要求补充审批或留痕。\n\n"
             "所需材料：\n"
-            "- 暂无明确依据。\n\n"
+            "- 暂无明确制度材料要求；建议准备问题背景、申请人、所属部门、期望完成时间和相关截图/合同/清单。\n\n"
             "注意事项：\n"
-            "- 不建议在没有制度依据的情况下自行处理。\n\n"
+            "- 低置信或知识库外问题不会调用 LLM 继续生成，避免编造政策。\n"
+            "- 涉及高风险权限、客户信息、付款、合同、印章或监管报送时，必须由制度负责人确认。\n\n"
             "引用来源：\n"
-            "- 未检索到可引用来源。"
+            f"{nearby_text}"
         )
 
     @staticmethod
@@ -157,10 +177,24 @@ class AnswerGenerator:
             "- 若涉及高风险流程，请补充主管、系统负责人或信息安全审批记录。\n\n"
             "注意事项：\n"
             f"- 风险等级：{primary.metadata.get('risk_level', '未知')}。\n"
-            "- 该回答由本地抽取式模板生成；配置 LLM API key 后可获得更自然的总结。\n\n"
+            + AnswerGenerator._business_guardrail(primary)
+            + "- 该回答由本地抽取式模板生成；配置 LLM API key 后可获得更自然的总结。\n\n"
             "引用来源：\n"
             + "\n".join(f"- {citation}" for citation in citations)
         )
+
+    @staticmethod
+    def _business_guardrail(primary: Document) -> str:
+        risk_level = str(primary.metadata.get("risk_level", ""))
+        process_type = str(primary.metadata.get("process_type", ""))
+        title = str(primary.metadata.get("title", ""))
+        high_risk_terms = ("数据", "生产", "合同", "付款", "印章", "监管", "权限", "审计")
+        if risk_level == "高" or any(term in process_type + title for term in high_risk_terms):
+            return (
+                "- 该问题涉及高风险或合规敏感流程，需保留系统流水、审批意见和执行证据；"
+                "不得用口头确认替代系统审批。\n"
+            )
+        return ""
 
     @staticmethod
     def _prioritize_answer_docs(question: str, docs: List[Document], process_type: str) -> List[Document]:
