@@ -52,7 +52,11 @@ class EnterpriseKnowledgeRAG:
 
     def __init__(self, config: RAGConfig = DEFAULT_CONFIG):
         self.config = config
-        self.loader = PolicyDocumentLoader(config.data_path)
+        self.loader = PolicyDocumentLoader(
+            config.data_path,
+            pdf_path=config.pdf_data_path,
+            pdf_mode=config.pdf_loader_mode,
+        )
         self.parents: List[Document] = []
         self.chunks: List[Document] = []
         self.index = None

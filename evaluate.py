@@ -374,6 +374,8 @@ def main() -> None:
     cases = load_cases()
     config = RAGConfig(
         data_path=DEFAULT_CONFIG.data_path,
+        pdf_data_path=DEFAULT_CONFIG.pdf_data_path,
+        pdf_loader_mode=DEFAULT_CONFIG.pdf_loader_mode,
         index_path=DEFAULT_CONFIG.index_path,
         embedding_model=os.getenv("SMARTOFFICE_EVAL_EMBEDDING_MODEL", "local-hashing"),
         top_k=TOP_K,

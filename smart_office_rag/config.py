@@ -10,6 +10,8 @@ os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
 @dataclass
 class RAGConfig:
     data_path: Path = PROJECT_ROOT / "data" / "policies"
+    pdf_data_path: Path = PROJECT_ROOT / "data" / "policies_pdf"
+    pdf_loader_mode: str = os.getenv("SMARTOFFICE_PDF_LOADER", "pypdf")
     index_path: Path = PROJECT_ROOT / "vector_index"
     embedding_model: str = os.getenv("SMARTOFFICE_EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
     top_k: int = 5

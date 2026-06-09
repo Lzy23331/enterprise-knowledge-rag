@@ -2,7 +2,7 @@
 
 SmartOfficeRAG 是一个面向 RAG/大模型应用工程岗展示的企业内部政策问答项目。项目使用自制模拟制度数据，覆盖 HR、财务、IT、信息安全、行政、法务、采购、内审和运营等场景，目标是解决企业制度分散、员工重复咨询、人工答疑成本高、答案难追溯的问题。
 
-系统支持制度解析、结构化 metadata、标题分块、向量检索、BM25、RRF 融合排序、低置信拒答、来源引用、离线评估和 Streamlit 可解释化展示。没有 LLM API key 时会自动使用本地抽取式回答，便于面试演示和云端部署。
+系统支持 Markdown 与 PDF 多格式制度接入、结构化 metadata、标题分块、向量检索、BM25、RRF 融合排序、低置信拒答、来源引用、离线评估和 Streamlit 可解释化展示。没有 LLM API key 时会自动使用本地抽取式回答，便于面试演示和云端部署。
 
 ## 业务目标
 
@@ -15,8 +15,11 @@ SmartOfficeRAG 是一个面向 RAG/大模型应用工程岗展示的企业内部
 
 ```mermaid
 flowchart LR
-    A["Markdown 制度库"] --> B["Front matter metadata"]
-    B --> C["标题层级分块"]
+    A["Markdown 制度库"] --> B["Front matter loader"]
+    P["PDF 制度库"] --> Q["PyPDFLoader / UnstructuredPDFLoader"]
+    B --> N["LangChain Document"]
+    Q --> N
+    N --> C["标题层级分块"]
     C --> D["Embedding / local hashing"]
     C --> E["BM25"]
     D --> F["Vector topN"]
@@ -41,6 +44,8 @@ flowchart LR
 
 ## 当前数据、评估与实验历程
 
+制度知识库包含 `data/policies/` 下 30 篇 Markdown 制度，以及 `data/policies_pdf/` 下 5 篇额外 PDF 制度。Markdown 走结构化 front matter loader；PDF 默认走 LangChain `PyPDFLoader`，可通过 `SMARTOFFICE_PDF_LOADER=unstructured` 切换为 `UnstructuredPDFLoader`，最终统一归一化为 LangChain `Document` 进入分块、embedding、检索和生成链路。
+
 评估集位于 `data/eval/eval_cases.jsonl`，当前包含 232 条问题：
 
 - 210 条知识库内问题：流程类、材料类、时限类、合规类、系统入口类、同义改写类、模糊追问类。
@@ -61,31 +66,31 @@ experiments/results/experiment_report.csv
 | Version | 关键策略 | Answer Acc. | Hit@5 | Citation Acc. | Refusal Acc. |
 | --- | --- | ---: | ---: | ---: | ---: |
 | V0 | LLM direct，无知识库 | 0.000 | 0.000 | 0.095 | 0.000 |
-| V1 | 整文档关键词检索 | 0.416 | 0.995 | 0.184 | 0.045 |
-| V2 | 固定窗口 chunk + BM25 | 0.555 | 1.000 | 0.372 | 0.182 |
-| V3 | Markdown header chunk + BM25 | 0.484 | 1.000 | 0.840 | 0.045 |
-| V4-bge-small | bge-small + FAISS，纯向量检索 | 0.454 | 0.862 | 0.305 | 0.000 |
-| V4-bge-base | bge-base + FAISS，纯向量检索 | 0.475 | 0.881 | 0.369 | 0.000 |
-| V4-e5 | multilingual-e5 + FAISS，纯向量检索 | 0.457 | 0.829 | 0.402 | 0.000 |
-| V5 | BM25 + vector + RRF | 0.533 | 0.990 | 0.897 | 0.000 |
-| V6-bge-base | bge-base + BM25 + RRF + 拒答 | 0.573 | 0.990 | 0.983 | 1.000 |
-| V6-bge-small | bge-small + BM25 + RRF + 拒答（部署选型） | 0.570 | 0.990 | 0.983 | 1.000 |
-| V6-e5 | multilingual-e5 + BM25 + RRF + 拒答 | 0.566 | 0.990 | 0.983 | 1.000 |
-| V7 | Query rewrite + metadata hint | 0.527 | 0.952 | 0.948 | 1.000 |
+| V1 | 整文档关键词检索 | 0.393 | 0.862 | 0.160 | 0.045 |
+| V2 | 固定窗口 chunk + BM25 | 0.535 | 0.957 | 0.339 | 0.045 |
+| V3 | Markdown header chunk + BM25 | 0.474 | 0.857 | 0.741 | 0.045 |
+| V4-bge-small | bge-small + FAISS，纯向量检索 | 0.459 | 0.814 | 0.294 | 0.000 |
+| V4-bge-base | bge-base + FAISS，纯向量检索 | 0.478 | 0.838 | 0.350 | 0.000 |
+| V4-e5 | multilingual-e5 + FAISS，纯向量检索 | 0.447 | 0.795 | 0.376 | 0.000 |
+| V5 | BM25 + vector + RRF | 0.524 | 0.957 | 0.866 | 0.000 |
+| V6-bge-base | bge-base + BM25 + RRF + 拒答 | 0.570 | 0.952 | 0.948 | 1.000 |
+| V6-bge-small | bge-small + BM25 + RRF + 拒答（部署选型） | 0.569 | 0.952 | 0.948 | 1.000 |
+| V6-e5 | multilingual-e5 + BM25 + RRF + 拒答 | 0.562 | 0.952 | 0.948 | 1.000 |
+| V7 | Query rewrite + metadata hint | 0.516 | 0.905 | 0.905 | 1.000 |
 
-实验结论：在线 full 实验已经完整跑通 bge-small、bge-base 和 multilingual-e5。bge-base 的 Answer Accuracy Proxy 最高，但相对 bge-small 只提升 0.003，Hit@5、Citation Accuracy、Refusal Accuracy 完全一致，而 p95 延迟明显更高；因此部署选型选择 bge-small + BM25 + RRF + 低置信拒答。V7 说明“规则增强不是越多越好”，当前样本下 query rewrite 和 metadata hint 会把部分相似制度引向错误部门。
+实验结论：在线 full 实验已经完整跑通 bge-small、bge-base 和 multilingual-e5，并且实验索引包含 30 篇 Markdown 制度与 5 篇 PDF 制度。bge-base 的 Answer Accuracy Proxy 最高，但相对 bge-small 只提升 0.001，Hit@5、Citation Accuracy、Refusal Accuracy 完全一致，而 p95 延迟明显更高；因此部署选型选择 bge-small + BM25 + RRF + 低置信拒答。V7 说明“规则增强不是越多越好”，当前样本下 query rewrite 和 metadata hint 会把部分相似制度引向错误部门。
 
 单次最终链路评估结果：
 
 | 指标 | Hybrid RAG |
 | --- | ---: |
-| Hit@5 / Recall@5 | 0.990 / 0.990 |
-| Context Precision@5 | 0.990 |
-| MRR@5 / nDCG@5 | 0.990 / 0.990 |
-| Citation Accuracy | 0.983 |
+| Hit@5 / Recall@5 | 0.957 / 0.957 |
+| Context Precision@5 | 0.957 |
+| MRR@5 / nDCG@5 | 0.957 / 0.957 |
+| Citation Accuracy | 0.953 |
 | Refusal Accuracy | 1.000 |
-| Faithfulness Proxy | 0.991 |
-| Latency p50 / p95 | 2.6 ms / 3.8 ms |
+| Faithfulness Proxy | 0.961 |
+| Latency p50 / p95 | 6.4 ms / 9.4 ms |
 
 说明：`local-hashing` 只作为快速可复现 fallback，不作为最终 embedding 选型依据；完整实验默认在线运行并下载/缓存真实 embedding 模型，离线模式只用于已有缓存复现。
 
@@ -137,12 +142,13 @@ http://localhost:8501
 .\.venv\Scripts\python.exe run_experiments.py --full --offline --allow-skip
 ```
 
-如需完整向量模型和 FAISS：
+如需解析更复杂的 PDF 版式或运行完整向量模型和 FAISS：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install --prefer-binary -r requirements-full.txt
 $env:SMARTOFFICE_USE_VECTOR="1"
 $env:HF_HOME="D:\projects\enterprise-knowledge-rag\.cache\huggingface"
+$env:SMARTOFFICE_PDF_LOADER="unstructured"
 ```
 
 如需接入 DeepSeek 或 OpenAI-compatible API：
@@ -173,7 +179,8 @@ $env:SMARTOFFICE_DISABLE_LLM="1"
 - 无 API key 时使用抽取式模板，保证面试和云端 Demo 稳定可用。
 - 低置信和知识库外问题跳过 LLM 生成，降低幻觉和调用成本。
 - 公开数据全部为模拟制度，不包含真实企业隐私或版权材料。
-- `requirements.txt` 面向轻量云端部署，`requirements-full.txt` 面向完整本地向量体验。
+- `requirements.txt` 面向轻量云端部署，包含 `PyPDFLoader` 所需的 `langchain-community` 和 `pypdf`。
+- `requirements-full.txt` 面向完整本地向量体验，并包含 `unstructured[pdf]` 作为复杂 PDF 解析增强选项。
 
 ## 面试讲述要点
 
@@ -189,7 +196,7 @@ $env:SMARTOFFICE_DISABLE_LLM="1"
 **SmartOfficeRAG：企业内部制度知识问答系统｜个人项目**
 
 - 面向企业 HR、财务、IT、安全等制度咨询场景，针对“制度分散、员工重复咨询、答案难追溯”的痛点，构建可本地部署的 RAG 问答系统，支持政策查询、流程解释、材料清单、风险提醒和引用溯源。
-- 设计 Markdown 制度知识库与结构化 metadata，完成文档解析、标题分块、向量索引持久化和部门/流程/风险等级过滤，沉淀 30 篇企业制度与 232 条评估样本。
-- 基于 232 条制度问答评估集建立真实迭代实验，从 LLM 直答 baseline 出发，依次验证整文档检索、固定窗口分块、Markdown 标题分块、bge-small/bge-base/e5 embedding、BM25+向量混合检索、RRF 融合与低置信拒答，使 Answer Accuracy Proxy 从 0.000 提升至 0.570，Citation Accuracy 从 0.095 提升至 0.983，Refusal Accuracy 从 0.000 提升至 1.000。
+- 设计 Markdown + PDF 多格式制度知识库与结构化 metadata，完成文档解析、标题分块、向量索引持久化和部门/流程/风险等级过滤，沉淀 35 篇企业制度与 232 条评估样本。
+- 基于 232 条制度问答评估集建立真实迭代实验，从 LLM 直答 baseline 出发，依次验证整文档检索、固定窗口分块、Markdown 标题分块、bge-small/bge-base/e5 embedding、BM25+向量混合检索、RRF 融合与低置信拒答，使 Answer Accuracy Proxy 从 0.000 提升至 0.569，Citation Accuracy 从 0.095 提升至 0.948，Refusal Accuracy 从 0.000 提升至 1.000。
 - 实现 BM25 与向量召回的混合检索链路，使用 RRF 融合排序，并结合主文档上下文补全和低置信拒答策略；实验发现 bge-base 准确率略高但延迟成本明显更高，bge-small 在核心指标持平下延迟更低，因此最终选用 bge-small + Hybrid RRF + 拒答门控作为部署方案。
 - 基于 Streamlit 部署可交互 Demo，展示回答、引用来源、检索片段、检索分数和评估指标；无 API key 时支持本地抽取式兜底，兼顾演示稳定性与调用成本。

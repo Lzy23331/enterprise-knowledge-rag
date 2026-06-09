@@ -1,38 +1,27 @@
-import hashlib
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
+from .loaders import MultiFormatPolicyLoader
 from .types import Document
 
 
-FRONT_MATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 HEADER_PATTERN = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
-
-
-def _parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
-    match = FRONT_MATTER_PATTERN.match(text)
-    if not match:
-        return {}, text
-
-    metadata: Dict[str, str] = {}
-    for line in match.group(1).splitlines():
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        metadata[key.strip()] = value.strip().strip('"')
-    return metadata, text[match.end():]
 
 
 class PolicyDocumentLoader:
     def __init__(
         self,
         data_path: Path,
+        pdf_path: Path | None = None,
+        pdf_mode: str = "pypdf",
         chunk_strategy: str = "markdown_headers",
         fixed_chunk_size: int = 900,
         fixed_chunk_overlap: int = 120,
     ):
         self.data_path = Path(data_path)
+        self.pdf_path = Path(pdf_path) if pdf_path else None
+        self.pdf_mode = pdf_mode
         self.chunk_strategy = chunk_strategy
         self.fixed_chunk_size = fixed_chunk_size
         self.fixed_chunk_overlap = fixed_chunk_overlap
@@ -41,22 +30,11 @@ class PolicyDocumentLoader:
         if not self.data_path.exists():
             raise FileNotFoundError(f"Policy data path not found: {self.data_path}")
 
-        documents: List[Document] = []
-        for path in sorted(self.data_path.rglob("*.md")):
-            raw_text = path.read_text(encoding="utf-8")
-            metadata, content = _parse_front_matter(raw_text)
-            relative_path = path.relative_to(self.data_path).as_posix()
-            doc_id = metadata.get("doc_id") or hashlib.md5(relative_path.encode("utf-8")).hexdigest()
-            metadata.update(
-                {
-                    "doc_id": doc_id,
-                    "source_path": str(path),
-                    "source_file": relative_path,
-                    "chunk_type": "parent",
-                }
-            )
-            documents.append(Document(page_content=content.strip(), metadata=metadata))
-        return documents
+        return MultiFormatPolicyLoader(
+            markdown_path=self.data_path,
+            pdf_path=self.pdf_path,
+            pdf_mode=self.pdf_mode,
+        ).load()
 
     def split_documents(self, documents: List[Document]) -> List[Document]:
         chunks: List[Document] = []

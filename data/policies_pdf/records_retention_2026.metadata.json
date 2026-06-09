@@ -1,0 +1,15 @@
+{
+  "doc_id": "LEGAL-RETENTION-2026",
+  "title": "业务记录留存与销毁管理规范",
+  "department": "Legal",
+  "process_type": "记录留存",
+  "risk_level": "高",
+  "owner": "法务部与内审部",
+  "system": "档案管理系统",
+  "form_id": "LEG-F-003",
+  "approval_sla": "高风险业务记录销毁须提前十个工作日发起审批",
+  "doc_type": "PDF制度",
+  "version": "v2026.1",
+  "effective_date": "2026-02-01",
+  "updated_at": "2026-06-01"
+}

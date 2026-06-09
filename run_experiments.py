@@ -241,6 +241,8 @@ class ExperimentRunner:
             return
         loader = PolicyDocumentLoader(
             DEFAULT_CONFIG.data_path,
+            pdf_path=DEFAULT_CONFIG.pdf_data_path,
+            pdf_mode=DEFAULT_CONFIG.pdf_loader_mode,
             chunk_strategy=self.config.chunk_strategy,
             fixed_chunk_size=self.config.fixed_chunk_size,
             fixed_chunk_overlap=self.config.fixed_chunk_overlap,

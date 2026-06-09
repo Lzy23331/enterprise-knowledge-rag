@@ -1,0 +1,15 @@
+{
+  "doc_id": "OPS-CS-QUALITY-2026",
+  "title": "客户服务话术质检与升级处理规范",
+  "department": "Operations",
+  "process_type": "客服质检",
+  "risk_level": "中",
+  "owner": "客户运营部",
+  "system": "客服质检平台",
+  "form_id": "OPS-F-002",
+  "approval_sla": "重大客诉须在两个小时内完成升级登记",
+  "doc_type": "PDF制度",
+  "version": "v2026.1",
+  "effective_date": "2026-02-01",
+  "updated_at": "2026-06-01"
+}

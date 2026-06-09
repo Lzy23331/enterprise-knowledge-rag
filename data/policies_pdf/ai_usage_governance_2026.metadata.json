@@ -1,0 +1,15 @@
+{
+  "doc_id": "AI-USAGE-2026",
+  "title": "生成式 AI 工具使用与内容审核规范",
+  "department": "AI Governance",
+  "process_type": "AI 工具使用",
+  "risk_level": "高",
+  "owner": "AI 治理委员会",
+  "system": "AI 工具申请平台",
+  "form_id": "AI-F-001",
+  "approval_sla": "高风险 AI 使用场景须在上线前五个工作日完成审核",
+  "doc_type": "PDF制度",
+  "version": "v2026.1",
+  "effective_date": "2026-02-01",
+  "updated_at": "2026-06-01"
+}

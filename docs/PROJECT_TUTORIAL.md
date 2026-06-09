@@ -1,4 +1,4 @@
-# SmartOfficeRAG 项目教程与学习说明
+﻿# SmartOfficeRAG 项目教程与学习说明
 
 这份文档是 SmartOfficeRAG 的主教程，面向项目作者、面试讲解者和后续维护者。目标不是只告诉你“怎么运行”，而是让你能按文件夹顺序理解：
 
@@ -43,6 +43,7 @@ enterprise-knowledge-rag/
 ├── eval_report.md
 ├── data/
 │   ├── policies/
+│   ├── policies_pdf/
 │   └── eval/
 ├── docs/
 │   ├── PROJECT_TUTORIAL.md
@@ -61,13 +62,14 @@ enterprise-knowledge-rag/
 
 | 类别 | 路径 | 用途 |
 | --- | --- | --- |
-| 知识库文档 | `data/policies/*.md` | RAG 实际检索的企业制度文本 |
+| Markdown 知识库文档 | `data/policies/*.md` | 结构化 Markdown 制度，使用 front matter metadata |
+| PDF 知识库文档 | `data/policies_pdf/*.pdf` | 新增 PDF 制度，使用 LangChain PDF loader 接入 |
 | 评估集 | `data/eval/eval_cases.jsonl` | 用来测试检索、引用、拒答和答案质量 |
 | 核心 RAG 代码 | `smart_office_rag/` | 文档加载、分块、索引、检索、生成、总控 |
 | Web 展示 | `app.py` | Streamlit 页面入口 |
 | 单次评估 | `evaluate.py` | 跑当前最终链路的评估 |
 | 迭代实验 | `run_experiments.py` + `experiments/` | 跑 V0-V7 版本对比和 embedding 选型 |
-| 数据生成 | `scripts/generate_enterprise_dataset.py` | 生成模拟制度和评估样本 |
+| 数据生成 | `scripts/generate_enterprise_dataset.py`、`scripts/generate_pdf_policies.py` | 生成 Markdown 制度、评估样本和额外 PDF 制度 |
 | 报告文档 | `eval_report.*`、`docs/EXPERIMENT_REPORT.md` | 展示评估和实验结果 |
 
 ---
@@ -234,17 +236,21 @@ HF_HOME=.cache/huggingface
 
 ```text
 streamlit
+langchain-core
+langchain-community
+pypdf
 rank_bm25
 python-dotenv
 openai
 numpy
 ```
 
-它不包含 `sentence-transformers` 和 `faiss-cpu`，原因是：
+其中 `langchain-community + pypdf` 用来支持轻量 PDF 解析，也就是默认的 `PyPDFLoader`。它仍然不包含 `sentence-transformers`、`faiss-cpu` 和 `unstructured[pdf]`，原因是：
 
 - Streamlit Cloud 免费环境资源有限。
 - 全量 embedding 模型可能导致部署慢或失败。
 - 公开 Demo 可以用轻量 fallback 和预生成报告展示主要能力。
+- 复杂 PDF 解析依赖较重，适合本地完整环境安装。
 
 ### 2.8 `requirements-full.txt`
 
@@ -255,13 +261,22 @@ numpy
 ```text
 faiss-cpu
 sentence-transformers
+unstructured[pdf]
+reportlab
 rank_bm25
 openai
 numpy
 streamlit
 ```
 
-如果你要跑 full embedding 实验，必须安装：
+其中：
+
+- `faiss-cpu`：用于真实 FAISS 向量索引实验。
+- `sentence-transformers`：用于 bge-small、bge-base、multilingual-e5 等真实 embedding 模型。
+- `unstructured[pdf]`：用于更复杂 PDF 的增强解析。
+- `reportlab`：用于生成本项目新增的模拟 PDF 制度。
+
+如果你要跑 full embedding 实验或生成 PDF 制度，必须安装：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install --prefer-binary -r requirements-full.txt
@@ -316,9 +331,9 @@ docs/EXPERIMENT_REPORT.md
 
 ## 3. `data/`：知识库与评估集
 
-### 3.1 `data/policies/` 是检索知识库
+### 3.1 `data/policies/` 是 Markdown 检索知识库
 
-这里的 `.md` 文件就是 RAG 系统实际检索的知识库。
+这里的 `.md` 文件是 RAG 系统最早的一批结构化制度知识库。
 
 当前共有 30 篇模拟企业制度，覆盖：
 
@@ -387,7 +402,61 @@ metadata 的作用：
 
 这些标题会直接影响分块和引用来源。
 
-### 3.2 `data/eval/eval_cases.jsonl` 是评估集
+### 3.2 `data/policies_pdf/` 是 PDF 检索知识库
+
+这是后续新增的多格式制度接入目录。注意：这些 PDF 不是由现有 Markdown 转换而来，而是额外生成的、不与原 Markdown 重复的新制度，用来模拟企业里常见的 PDF 版制度文件。
+
+当前新增 5 篇 PDF 制度：
+
+| doc_id | 制度标题 | 部门 | 风险等级 |
+| --- | --- | --- | --- |
+| `AI-USAGE-2026` | 生成式 AI 工具使用与内容审核规范 | AI Governance | 高 |
+| `HR-REMOTE-2026` | 远程办公与异地协作安全规范 | HR | 中 |
+| `OPS-CS-QUALITY-2026` | 客户服务话术质检与升级处理规范 | Operations | 中 |
+| `LEGAL-RETENTION-2026` | 业务记录留存与销毁管理规范 | Legal | 高 |
+| `IT-OSS-2026` | 开源软件引入与许可证合规规范 | IT | 高 |
+
+每个 PDF 旁边还有一个同名 metadata 文件：
+
+```text
+data/policies_pdf/open_source_compliance_2026.pdf
+data/policies_pdf/open_source_compliance_2026.metadata.json
+```
+
+为什么要有 sidecar metadata：
+
+- 真实企业 PDF 经常来自 OA、网盘、DMS 或扫描归档系统，正文和结构化字段不一定在同一个地方。
+- PDF 抽文本对字体、排版、扫描件和表格很敏感，只靠 PDF 文本里的 front matter 不够稳。
+- sidecar metadata 可以保证 `doc_id`、`department`、`risk_level`、`owner`、`approval_sla` 等关键字段稳定进入检索链路。
+
+PDF 正文本身仍然保留 Markdown-like 标题，例如：
+
+```text
+# 开源软件引入与许可证合规规范
+## 适用范围
+## 准入条件
+## 办理步骤
+## 所需材料
+## 审批 SLA 与例外流程
+## 注意事项
+## 常见问题
+```
+
+这样做的目的不是把 PDF 伪装成 Markdown，而是让从 PDF 抽出来的纯文本仍然能被项目已有的标题分块策略识别。实际企业制度里，PDF 也常常有清晰的一级、二级标题。
+
+生成这些 PDF 的脚本是：
+
+```text
+scripts/generate_pdf_policies.py
+```
+
+运行方式：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\generate_pdf_policies.py
+```
+
+### 3.3 `data/eval/eval_cases.jsonl` 是评估集
 
 这是 RAG 的测试题库。
 
@@ -441,16 +510,24 @@ metadata 的作用：
 
 ### 4.1 `types.py`
 
-定义最基础的数据结构：
+定义项目内部统一使用的 `Document` 类型。
 
 ```python
-@dataclass
-class Document:
-    page_content: str
-    metadata: Dict[str, Any]
+from langchain_core.documents import Document
 ```
 
-整个项目中，制度文档、chunk、检索结果都用这个 `Document` 表示。
+现在项目优先使用 LangChain 的标准 `Document`：
+
+- `page_content`：文档正文或 chunk 正文。
+- `metadata`：文档 ID、标题、部门、来源文件、章节、引用等结构化信息。
+
+如果运行环境没有安装 `langchain-core`，`types.py` 会回退到项目自己的轻量 dataclass，保证旧环境仍可运行。但推荐理解为：后续所有 Markdown、PDF、chunk、检索结果都会统一归一化为 LangChain `Document`。
+
+为什么要统一成 LangChain `Document`：
+
+- LangChain 的 loader、splitter、retriever 都围绕 `Document` 组织数据。
+- Markdown 和 PDF 来源不同，但进入 RAG 链路后需要统一字段。
+- 后续如果替换成 LangChain 的 `RecursiveCharacterTextSplitter`、`MarkdownHeaderTextSplitter` 或向量库 retriever，不需要重写数据结构。
 
 ### 4.2 `config.py`
 
@@ -460,6 +537,8 @@ class Document:
 
 ```python
 data_path = PROJECT_ROOT / "data" / "policies"
+pdf_data_path = PROJECT_ROOT / "data" / "policies_pdf"
+pdf_loader_mode = os.getenv("SMARTOFFICE_PDF_LOADER", "pypdf")
 index_path = PROJECT_ROOT / "vector_index"
 embedding_model = os.getenv("SMARTOFFICE_EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
 top_k = 5
@@ -473,8 +552,110 @@ use_vector_index = os.getenv("SMARTOFFICE_USE_VECTOR", "1") == "1"
 - 默认 embedding 是 `BAAI/bge-small-zh-v1.5`。
 - 可以用环境变量 `SMARTOFFICE_EMBEDDING_MODEL` 切换。
 - `SMARTOFFICE_USE_VECTOR=1` 时启用向量检索。
+- `pdf_data_path` 指向新增的 PDF 制度目录。
+- `SMARTOFFICE_PDF_LOADER=pypdf` 默认使用轻量 `PyPDFLoader`。
+- 如果设置 `SMARTOFFICE_PDF_LOADER=unstructured`，会优先尝试 `UnstructuredPDFLoader`，失败后回退到 `PyPDFLoader`。
 
-### 4.3 `documents.py`
+### 4.3 `loaders.py`
+
+`loaders.py` 是新增的多格式文档加载层，负责把不同格式的制度统一变成 LangChain `Document`。
+
+核心类：
+
+```python
+MarkdownPolicyLoader
+PDFPolicyLoader
+MultiFormatPolicyLoader
+```
+
+#### 4.3.1 `MarkdownPolicyLoader`
+
+Markdown 加载路径：
+
+```text
+data/policies/*.md
+```
+
+处理步骤：
+
+1. 读取 Markdown 原文。
+2. 解析顶部 front matter。
+3. 将 front matter 写入 `Document.metadata`。
+4. 将正文写入 `Document.page_content`。
+5. 补充统一字段：
+
+```python
+{
+    "doc_id": "...",
+    "source_path": "...",
+    "source_file": "...",
+    "source_type": "markdown",
+    "loader": "MarkdownPolicyLoader",
+    "chunk_type": "parent",
+}
+```
+
+这相当于一个项目内封装的“结构化 front matter loader”。它没有直接使用 `UnstructuredMarkdownLoader`，原因是当前 Markdown 制度已经有稳定 front matter，而且我们需要精确控制 `doc_id`、部门、流程、风险等级这些业务 metadata。
+
+#### 4.3.2 `PDFPolicyLoader`
+
+PDF 加载路径：
+
+```text
+data/policies_pdf/*.pdf
+```
+
+处理步骤：
+
+1. 根据配置选择 LangChain loader。
+2. `pypdf` 模式使用：
+
+```python
+from langchain_community.document_loaders import PyPDFLoader
+```
+
+3. `unstructured` 模式优先使用：
+
+```python
+from langchain_community.document_loaders import UnstructuredPDFLoader
+```
+
+4. 如果 `UnstructuredPDFLoader` 不可用，自动回退到 `PyPDFLoader`。
+5. 将 PDF 每页抽出的 `Document` 合并成一篇 parent document。
+6. 尝试从第一页文本解析 front matter。
+7. 读取同名 `.metadata.json` 补全结构化 metadata。
+8. 补充统一字段：
+
+```python
+{
+    "source_type": "pdf",
+    "loader": "PyPDFLoader" 或 "UnstructuredPDFLoader",
+    "page_numbers": "1,2,...",
+    "chunk_type": "parent",
+}
+```
+
+为什么有两个 PDF loader：
+
+- `PyPDFLoader` 轻量，安装简单，适合 Streamlit Cloud 和面试演示。
+- `UnstructuredPDFLoader` 对复杂 PDF、版面元素、表格、标题识别更强，但依赖更重。
+- 当前项目默认选择 `PyPDFLoader`，把 `UnstructuredPDFLoader` 作为增强选项。
+
+#### 4.3.3 `MultiFormatPolicyLoader`
+
+它把 Markdown 和 PDF 两路结果合并：
+
+```text
+MarkdownPolicyLoader(data/policies)
+  ↓
+PDFPolicyLoader(data/policies_pdf)
+  ↓
+List[LangChain Document]
+```
+
+这一步之后，系统不再关心原始文件是 Markdown 还是 PDF。后面的分块、embedding、BM25、RRF、生成、引用展示都只处理统一的 `Document`。
+
+### 4.4 `documents.py`
 
 负责文档加载、metadata 解析和文本分块。
 
@@ -484,7 +665,7 @@ use_vector_index = os.getenv("SMARTOFFICE_USE_VECTOR", "1") == "1"
 PolicyDocumentLoader
 ```
 
-#### 4.3.1 加载制度文档
+#### 4.4.1 加载制度文档
 
 调用：
 
@@ -492,29 +673,40 @@ PolicyDocumentLoader
 loader.load_parent_documents()
 ```
 
-它会遍历：
+它会调用 `MultiFormatPolicyLoader`，同时遍历：
 
 ```text
 data/policies/*.md
+data/policies_pdf/*.pdf
 ```
 
 每一篇制度会变成一个 parent document。
 
-#### 4.3.2 解析 front matter
+当前验证结果：
 
-代码使用正则：
+```text
+parent documents: 35
+Markdown documents: 30
+PDF documents: 5
+chunks: 380
+PDF chunks: 50
+```
+
+#### 4.4.2 解析 metadata
+
+Markdown metadata 来自文件顶部 front matter。PDF metadata 先尝试从 PDF 抽出的第一页文本解析 front matter，再读取同名 `.metadata.json` 兜底。
 
 ```python
 FRONT_MATTER_PATTERN = re.compile(...)
 ```
 
-把 Markdown 顶部的 YAML-like metadata 解析到：
+最终都会进入：
 
 ```python
 Document.metadata
 ```
 
-#### 4.3.3 三种分块策略
+#### 4.4.3 三种分块策略
 
 后续实验框架新增了可插拔分块策略：
 
@@ -622,7 +814,7 @@ chunk_size
 《生产系统变更与应急处理规范》审批 SLA 与例外流程
 ```
 
-### 4.4 `indexing.py`
+### 4.5 `indexing.py`
 
 负责 embedding 和向量索引。
 
@@ -635,7 +827,7 @@ VectorRetriever
 VectorIndex
 ```
 
-#### 4.4.1 `EmbeddingModel`
+#### 4.5.1 `EmbeddingModel`
 
 支持两类 embedding：
 
@@ -652,7 +844,7 @@ intfloat/multilingual-e5-small
 
 这些模型在 full 实验中真实在线跑通。
 
-#### 4.4.2 `local-hashing` 是什么
+#### 4.5.2 `local-hashing` 是什么
 
 `local-hashing` 不是一个真正的语义 embedding 模型。
 
@@ -679,7 +871,7 @@ intfloat/multilingual-e5-small
 
 > `local-hashing` 只作为快速可复现 baseline；最终 embedding 选型来自在线 full 实验中的 bge-small、bge-base、multilingual-e5 对比。
 
-#### 4.4.3 向量库：FAISS 与 NumPy
+#### 4.5.3 向量库：FAISS 与 NumPy
 
 `VectorStore` 支持：
 
@@ -703,9 +895,9 @@ scores = vectors @ query_vector
 - quick 模式用 `local-hashing + numpy`，保证可复现。
 - full 模式用真实 embedding + FAISS，做严谨模型对比。
 
-#### 4.4.4 为什么最终不是 Milvus/ES/PGVector
+#### 4.5.4 为什么最终不是 Milvus/ES/PGVector
 
-本项目是个人项目和面试展示，数据规模是 30 篇制度、330 个 chunk。
+本项目是个人项目和面试展示，当前数据规模是 35 篇制度、380 个 chunk。
 
 选择 FAISS 的原因：
 
@@ -725,7 +917,7 @@ scores = vectors @ query_vector
 | Elasticsearch | 企业已有搜索基础设施、BM25 强 | 企业落地可考虑 |
 | PGVector | 数据已在 Postgres 中 | 适合业务系统集成 |
 
-### 4.5 `retrieval.py`
+### 4.6 `retrieval.py`
 
 负责检索和排序。
 
@@ -737,7 +929,7 @@ BM25TextRetriever
 HybridRetriever
 ```
 
-#### 4.5.1 KeywordRetriever
+#### 4.6.1 KeywordRetriever
 
 朴素关键词检索。
 
@@ -749,7 +941,7 @@ HybridRetriever
 
 实验中 V1 使用它。
 
-#### 4.5.2 BM25TextRetriever
+#### 4.6.2 BM25TextRetriever
 
 BM25 是经典稀疏检索方法。
 
@@ -768,7 +960,7 @@ BM25 是经典稀疏检索方法。
 - V2：固定窗口 + BM25。
 - V3：标题分块 + BM25。
 
-#### 4.5.3 VectorRetriever
+#### 4.6.3 VectorRetriever
 
 向量检索不在 `retrieval.py` 里定义，而是在 `indexing.py` 里。
 
@@ -785,7 +977,7 @@ BM25 是经典稀疏检索方法。
 - V4-bge-base：bge-base + FAISS。
 - V4-e5：multilingual-e5 + FAISS。
 
-#### 4.5.4 HybridRetriever
+#### 4.6.4 HybridRetriever
 
 最终主链路的检索器。
 
@@ -803,7 +995,7 @@ query
  primary doc context expansion
 ```
 
-#### 4.5.5 RRF 融合
+#### 4.6.5 RRF 融合
 
 RRF 是 Reciprocal Rank Fusion。
 
@@ -819,7 +1011,7 @@ score += 1 / (rrf_k + rank)
 - 排名稳定。
 - 工程实现简单。
 
-#### 4.5.6 文档级排序增强
+#### 4.6.6 文档级排序增强
 
 项目不只看 chunk 分数，还会聚合同一 `doc_id` 的分数。
 
@@ -832,7 +1024,7 @@ score += 1 / (rrf_k + rank)
 
 这样做是因为企业制度常常是“一篇制度多个章节”，最终回答应该集中在同一主制度上。
 
-#### 4.5.7 主文档上下文补全
+#### 4.6.7 主文档上下文补全
 
 当 top 文档确定后，系统会补充同一文档下的其他章节。
 
@@ -850,7 +1042,7 @@ score += 1 / (rrf_k + rank)
 
 所以会从同一个 `doc_id` 中补充相关 chunk。
 
-### 4.6 `generator.py`
+### 4.7 `generator.py`
 
 负责答案生成。
 
@@ -859,7 +1051,7 @@ score += 1 / (rrf_k + rank)
 1. LLM 生成。
 2. 本地抽取式兜底。
 
-#### 4.6.1 LLM 生成
+#### 4.7.1 LLM 生成
 
 如果配置了：
 
@@ -891,7 +1083,7 @@ Prompt 要求：
 引用来源：
 ```
 
-#### 4.6.2 本地抽取式兜底
+#### 4.7.2 本地抽取式兜底
 
 如果没有 API key，或设置：
 
@@ -914,7 +1106,7 @@ SMARTOFFICE_DISABLE_LLM=1
 - 评估不依赖外部模型。
 - 成本稳定。
 
-#### 4.6.3 高风险业务提示
+#### 4.7.3 高风险业务提示
 
 后续优化中新增了高风险 guardrail。
 
@@ -937,7 +1129,7 @@ SMARTOFFICE_DISABLE_LLM=1
 
 这体现业务思维，不只是技术检索。
 
-#### 4.6.4 无依据回答
+#### 4.7.4 无依据回答
 
 `generate_no_evidence()` 用于拒答场景。
 
@@ -948,7 +1140,7 @@ SMARTOFFICE_DISABLE_LLM=1
 - 准备问题背景、申请人、所属部门、截图/合同/清单。
 - 高风险事项必须人工确认。
 
-### 4.7 `pipeline.py`
+### 4.8 `pipeline.py`
 
 RAG 总控层。
 
@@ -965,9 +1157,15 @@ initialize()
 ask(question, filters=None)
 ```
 
-#### 4.7.1 初始化
+#### 4.8.1 初始化
 
 ```text
+MarkdownPolicyLoader + PDFPolicyLoader
+  ↓
+MultiFormatPolicyLoader
+  ↓
+LangChain Document 归一化
+  ↓
 load_parent_documents()
   ↓
 split_documents()
@@ -979,7 +1177,7 @@ HybridRetriever
 AnswerGenerator
 ```
 
-#### 4.7.2 问答流程
+#### 4.8.2 问答流程
 
 ```text
 用户问题
@@ -1011,7 +1209,7 @@ refusal_reason
 
 这些字段会在 Streamlit 页面上展示。
 
-#### 4.7.3 Out-of-scope 拒答
+#### 4.8.3 Out-of-scope 拒答
 
 项目内置越界词，例如：
 
@@ -1025,7 +1223,7 @@ refusal_reason
 
 这些问题不属于当前制度库，直接拒答。
 
-#### 4.7.4 低置信拒答
+#### 4.8.4 低置信拒答
 
 如果检索结果与问题的关键词重叠太弱：
 
@@ -1064,7 +1262,37 @@ max_overlap < 3
 
 运行它会重写 `data/policies/` 和 `data/eval/eval_cases.jsonl`。
 
-### 5.2 评估样本如何生成
+### 5.2 `scripts/generate_pdf_policies.py`
+
+这个脚本生成：
+
+- 5 篇额外 PDF 制度。
+- 5 个同名 `.metadata.json` sidecar 文件。
+
+运行：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\generate_pdf_policies.py
+```
+
+输出目录：
+
+```text
+data/policies_pdf/
+```
+
+它的作用：
+
+- 补充企业里常见的 PDF 版制度接入场景。
+- 验证项目不是只能处理 Markdown。
+- 为 `PDFPolicyLoader` 提供可复现的测试数据。
+- 保证 PDF 制度和已有 Markdown 制度不重复。
+
+注意：
+
+这个脚本不会改写 `data/policies/`，也不会把 Markdown 转成 PDF。它生成的是新的 PDF 制度文档。
+
+### 5.3 评估样本如何生成
 
 每篇制度生成多类问题：
 
@@ -1275,9 +1503,9 @@ intfloat/multilingual-e5-small
 
 | 版本 | Embedding | Answer Acc. | Hit@5 | Citation Acc. | Refusal Acc. | p95 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| V6-bge-base | bge-base | 0.573 | 0.990 | 0.983 | 1.000 | 高 |
-| V6-bge-small | bge-small | 0.570 | 0.990 | 0.983 | 1.000 | 低很多 |
-| V6-e5 | multilingual-e5 | 0.566 | 0.990 | 0.983 | 1.000 | 中等 |
+| V6-bge-base | bge-base | 0.570 | 0.952 | 0.948 | 1.000 | 高 |
+| V6-bge-small | bge-small | 0.569 | 0.952 | 0.948 | 1.000 | 低很多 |
+| V6-e5 | multilingual-e5 | 0.562 | 0.952 | 0.948 | 1.000 | 中等 |
 
 严谨结论：
 
@@ -1590,7 +1818,7 @@ nDCG 越高，说明正确文档越靠前。
 
 V0 的 Citation Accuracy 很低，因为没有检索知识库。
 
-V6 的 Citation Accuracy 到 0.983，说明引用来源已经基本可靠。
+V6-bge-small 的 Citation Accuracy 到 0.948，说明在新增 PDF 干扰文档后，引用来源仍然基本可靠。
 
 ### 9.8 Refusal Accuracy
 
@@ -1676,14 +1904,14 @@ full 实验中 bge-base 构建更慢，因为模型更大。
 
 推荐讲法：
 
-> 我没有直接把最终方案写死，而是设计了 232 条制度问答评估集，从无检索 baseline 开始，依次比较整文档检索、固定窗口分块、Markdown 标题分块、纯向量检索、BM25+向量混合检索、RRF 融合、低置信拒答和不同 embedding 模型。实验发现，单纯向量检索不如 BM25 稳，标题分块能显著提升引用准确率，低置信拒答能把知识库外拒答准确率提升到 1.0。embedding 对比中 bge-base 质量略高，但相对 bge-small 提升很小，而延迟明显更高，所以最终选择 bge-small + BM25 + RRF + 拒答门控作为部署链路。
+> 我没有直接把最终方案写死，而是设计了 232 条制度问答评估集，从无检索 baseline 开始，依次比较整文档检索、固定窗口分块、Markdown 标题分块、纯向量检索、BM25+向量混合检索、RRF 融合、低置信拒答和不同 embedding 模型。后续又新增 5 篇 PDF 制度作为额外干扰文档，验证多格式制度接入后链路仍然稳定。实验发现，单纯向量检索不如 BM25 稳，标题分块能显著提升引用准确率，低置信拒答能把知识库外拒答准确率提升到 1.0。embedding 对比中 bge-base 质量略高，但相对 bge-small 提升只有 0.001 左右，而延迟明显更高，所以最终选择 bge-small + BM25 + RRF + 拒答门控作为部署链路。
 
 简历数字：
 
 ```text
-Answer Accuracy Proxy: 0.000 -> 0.570
-Hit@5: 0.000 -> 0.990
-Citation Accuracy: 0.095 -> 0.983
+Answer Accuracy Proxy: 0.000 -> 0.569
+Hit@5: 0.000 -> 0.952
+Citation Accuracy: 0.095 -> 0.948
 Refusal Accuracy: 0.000 -> 1.000
 ```
 
@@ -1763,17 +1991,19 @@ V7 加了 query rewrite 和 metadata hint。
 如果你要快速掌握这个项目，建议按这个顺序读：
 
 1. `README.md`：先看项目定位和最终故事。
-2. `data/policies/`：看 2-3 篇制度，理解知识库长什么样。
-3. `data/eval/eval_cases.jsonl`：看评估问题怎么设计。
-4. `smart_office_rag/documents.py`：理解 metadata 和分块。
-5. `smart_office_rag/indexing.py`：理解 embedding 和 FAISS。
-6. `smart_office_rag/retrieval.py`：理解 BM25、向量检索、RRF。
-7. `smart_office_rag/generator.py`：理解 LLM 生成和抽取式兜底。
-8. `smart_office_rag/pipeline.py`：串起完整流程。
-9. `evaluate.py`：理解单次评估。
-10. `run_experiments.py`：理解真实迭代实验。
-11. `docs/EXPERIMENT_REPORT.md`：背熟面试里的实验故事。
-12. `app.py`：理解页面如何展示这些能力。
+2. `data/policies/`：看 2-3 篇 Markdown 制度，理解结构化 front matter 知识库长什么样。
+3. `data/policies_pdf/`：看 1-2 篇 PDF 制度和 `.metadata.json`，理解 PDF + sidecar metadata 的接入方式。
+4. `data/eval/eval_cases.jsonl`：看评估问题怎么设计。
+5. `smart_office_rag/loaders.py`：理解 Markdown/PDF 如何统一成 LangChain Document。
+6. `smart_office_rag/documents.py`：理解 metadata 和分块。
+7. `smart_office_rag/indexing.py`：理解 embedding 和 FAISS。
+8. `smart_office_rag/retrieval.py`：理解 BM25、向量检索、RRF。
+9. `smart_office_rag/generator.py`：理解 LLM 生成和抽取式兜底。
+10. `smart_office_rag/pipeline.py`：串起完整流程。
+11. `evaluate.py`：理解单次评估。
+12. `run_experiments.py`：理解真实迭代实验。
+13. `docs/EXPERIMENT_REPORT.md`：背熟面试里的实验故事。
+14. `app.py`：理解页面如何展示这些能力。
 
 ---
 
@@ -1781,10 +2011,11 @@ V7 加了 query rewrite 和 metadata hint。
 
 可以这样讲：
 
-> 这个项目是在 all-in-rag 思路基础上，结合企业内部制度问答场景重新设计的数据、文档结构、评估集和展示系统。我没有直接用最终方案，而是先构造 30 篇模拟制度和 232 条评估问题，从无检索 LLM baseline 开始，逐步验证整文档检索、固定窗口分块、Markdown 标题分块、纯向量、BM25、RRF 混合检索、低置信拒答和不同 embedding 模型。实验发现标题分块能提升引用准确率，BM25+向量+RRF 能提升召回稳定性，低置信拒答能把知识库外问题拒答准确率提升到 1.0。embedding 对比中 bge-base 质量略高，但 bge-small 在核心指标持平下延迟更低，所以最终选择 bge-small + BM25 + RRF + 拒答门控。系统最终支持 Streamlit 展示回答、引用、检索片段、分数和实验历程。
+> 这个项目是在 all-in-rag 思路基础上，结合企业内部制度问答场景重新设计的数据、文档结构、评估集和展示系统。我先构造 30 篇 Markdown 模拟制度和 232 条评估问题，又新增 5 篇不重复的 PDF 制度，使用结构化 front matter loader 与 LangChain PyPDFLoader/UnstructuredPDFLoader 统一归一化为 Document。从无检索 LLM baseline 开始，逐步验证整文档检索、固定窗口分块、Markdown 标题分块、纯向量、BM25、RRF 混合检索、低置信拒答和不同 embedding 模型。实验发现标题分块能提升引用准确率，BM25+向量+RRF 能提升召回稳定性，低置信拒答能把知识库外问题拒答准确率提升到 1.0。embedding 对比中 bge-base 质量略高，但 bge-small 在核心指标持平下延迟更低，所以最终选择 bge-small + BM25 + RRF + 拒答门控。系统最终支持 Streamlit 展示回答、引用、检索片段、分数和实验历程。
 
 最重要的三个亮点：
 
 1. 有完整 RAG 工程链路，不只是调 API。
 2. 有真实可复现实验，不是拍脑袋选方案。
 3. 有业务风控意识，包括引用溯源、拒答和高风险流程提醒。
+

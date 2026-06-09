@@ -1,0 +1,15 @@
+{
+  "doc_id": "HR-REMOTE-2026",
+  "title": "远程办公与异地协作安全规范",
+  "department": "HR",
+  "process_type": "远程办公",
+  "risk_level": "中",
+  "owner": "人力资源部与信息安全部",
+  "system": "员工服务系统",
+  "form_id": "HR-F-006",
+  "approval_sla": "连续远程办公超过三天须至少提前两个工作日提交申请",
+  "doc_type": "PDF制度",
+  "version": "v2026.1",
+  "effective_date": "2026-02-01",
+  "updated_at": "2026-06-01"
+}
