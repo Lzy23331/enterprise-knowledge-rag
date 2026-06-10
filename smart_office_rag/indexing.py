@@ -1,4 +1,5 @@
 import hashlib
+import os
 import pickle
 import re
 from pathlib import Path
@@ -7,6 +8,12 @@ from typing import List, Optional
 import numpy as np
 
 from .types import Document
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("HF_HOME", str(PROJECT_ROOT / ".cache" / "huggingface"))
+if os.getenv("SMARTOFFICE_EMBEDDING_LOCAL_ONLY", "1") == "1":
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 SentenceTransformer = None
 
@@ -21,6 +28,7 @@ class EmbeddingModel:
         self.model_name = model_name
         self.fallback_dim = fallback_dim
         self.model = None
+        self.load_mode = "local-hashing" if model_name == "local-hashing" else "uninitialized"
         self.used_fallback = model_name == "local-hashing"
         if model_name == "local-hashing":
             return
@@ -36,9 +44,15 @@ class EmbeddingModel:
                 return
         if SentenceTransformer is not None:
             try:
-                self.model = SentenceTransformer(model_name)
+                local_only = os.getenv("SMARTOFFICE_EMBEDDING_LOCAL_ONLY", "1") == "1"
+                if local_only:
+                    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+                    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+                self.model = SentenceTransformer(model_name, local_files_only=local_only)
+                self.load_mode = "local_cache" if local_only else "online_or_cache"
             except Exception as exc:
                 print(f"Embedding model is unavailable, falling back to local hashing vectors: {exc}")
+                self.load_mode = "fallback"
                 self.used_fallback = True
 
     def embed_documents(self, texts: List[str]) -> np.ndarray:

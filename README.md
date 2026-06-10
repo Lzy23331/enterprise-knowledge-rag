@@ -78,10 +78,10 @@ eval_report.md
 | Citation Accuracy | 0.901 |
 | Refusal Accuracy | 1.000 |
 | Faithfulness Proxy | 0.910 |
-| Answer Accuracy Proxy | 0.441 |
-| Latency p50 / p95 | 10.1 ms / 16.5 ms |
+| Answer Accuracy Proxy | 0.476 |
+| Latency p50 / p95 | 25.7 ms / 34.5 ms |
 
-运行 `run_experiments.py --quick` 会生成真实迭代实验报告：
+运行 `run_experiments.py --quick` 或 `run_experiments.py --full` 会生成真实迭代实验报告：
 
 ```text
 docs/EXPERIMENT_REPORT.md
@@ -89,22 +89,26 @@ experiments/results/experiment_report.json
 experiments/results/experiment_report.csv
 ```
 
-当前 quick 实验已经基于 45 份制度和 324 条评估样本回归通过。`--full` 会在线下载/加载真实 embedding 模型对比 bge-small、bge-base、multilingual-e5；如果网络连接 Hugging Face 超时，实验会如实失败或 skipped，不伪造完整模型对比结果。
+当前 full 实验已经基于 45 份制度和 324 条评估样本严格跑通，真实 embedding 模型均从本地 Hugging Face 缓存稳定加载，没有使用 fallback。已完成对比：`BAAI/bge-small-zh-v1.5`、`BAAI/bge-base-zh-v1.5`、`intfloat/multilingual-e5-small`。
 
-quick 迭代结果摘要：
+full 迭代结果摘要：
 
 | Version | 关键策略 | Answer Acc. | Hit@5 | Citation Acc. | Refusal Acc. |
 | --- | --- | ---: | ---: | ---: | ---: |
 | V0 | LLM direct，无知识库 | 0.000 | 0.000 | 0.074 | 0.000 |
-| V1 | 整文档关键词检索 | 0.368 | 0.947 | 0.178 | 0.042 |
-| V2 | 固定窗口 chunk + BM25 | 0.542 | 0.993 | 0.460 | 0.042 |
-| V3 | Markdown/PDF 结构分块 + BM25 | 0.536 | 0.963 | 0.764 | 0.042 |
-| V4 | local-hashing + NumPy，纯向量检索 | 0.253 | 0.753 | 0.290 | 0.000 |
-| V5 | BM25 + vector + RRF | 0.440 | 0.903 | 0.836 | 0.000 |
-| V6 | BM25 + vector + RRF + 拒答 | 0.440 | 0.903 | 0.901 | 1.000 |
-| V7 | Query rewrite + metadata hint + 拒答 | 0.445 | 0.900 | 0.898 | 1.000 |
+| V1 | 整文档关键词检索 | 0.382 | 0.997 | 0.188 | 0.042 |
+| V2 | 固定窗口 chunk + BM25 | 0.508 | 1.000 | 0.458 | 0.042 |
+| V3 | Markdown/PDF 结构分块 + BM25 | 0.416 | 0.973 | 0.794 | 0.042 |
+| V4-local | local-hashing + NumPy，纯向量检索 | 0.221 | 0.783 | 0.332 | 0.000 |
+| V4-bge-small | bge-small + FAISS，纯向量检索 | 0.363 | 0.883 | 0.386 | 0.000 |
+| V4-bge-base | bge-base + FAISS，纯向量检索 | 0.388 | 0.883 | 0.417 | 0.000 |
+| V4-e5 | multilingual-e5 + FAISS，纯向量检索 | 0.362 | 0.847 | 0.406 | 0.000 |
+| V6-local | local-hashing + BM25 + RRF + 拒答 | 0.440 | 0.903 | 0.901 | 1.000 |
+| V6-bge-small | bge-small + BM25 + RRF + 拒答 | 0.476 | 0.903 | 0.901 | 1.000 |
+| V6-bge-base | bge-base + BM25 + RRF + 拒答 | 0.475 | 0.903 | 0.901 | 1.000 |
+| V6-e5 | multilingual-e5 + BM25 + RRF + 拒答 | 0.469 | 0.903 | 0.901 | 1.000 |
 
-说明：`local-hashing` 只作为快速可复现 baseline，不作为最终 embedding 选型依据；真实 embedding 选型需要 `run_experiments.py --full` 完整跑通后再写入简历口径。
+说明：`local-hashing` 只作为快速可复现 baseline；真实 full 实验显示三种 embedding 在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，bge-small 的 Answer Accuracy Proxy 最高且 p95 延迟明显低于 bge-base，因此最终选择 `BAAI/bge-small-zh-v1.5 + BM25 + RRF + 低置信拒答`。
 
 ## 运行方式
 
@@ -123,6 +127,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --prefer-binary -r requirements-full.txt
 $env:SMARTOFFICE_USE_VECTOR="1"
 $env:HF_HOME="D:\projects\enterprise-knowledge-rag\.cache\huggingface"
+$env:SMARTOFFICE_EMBEDDING_LOCAL_ONLY="1"
 ```
 
 如需额外实验复杂 PDF 解析，再单独安装：
@@ -210,7 +215,7 @@ $env:SMARTOFFICE_DISABLE_LLM="1"
 - 为什么不是纯 LLM：纯 LLM 无法保证制度依据和引用，容易编造流程。
 - 为什么混合检索：BM25 擅长制度名、表单号、系统名等精确词；向量检索覆盖同义问法；RRF 提供可解释融合。
 - 怎么评估：用 `data/eval/*.jsonl` 覆盖流程、材料、时限、合规、金额阈值、跨文档引用、版本差异和拒答，输出 Hit@5、MRR、Citation Accuracy、Refusal Accuracy、p95 latency。
-- 怎么迭代：从 V0 无检索 baseline 出发，逐步测试整文档、固定窗口、标题/章条分块、混合检索、RRF 和拒答；真实 embedding 选型必须以 `--full` 成功结果为准。
+- 怎么迭代：从 V0 无检索 baseline 出发，逐步测试整文档、固定窗口、标题/章条分块、local-hashing、bge-small、bge-base、multilingual-e5、混合检索、RRF 和拒答；full 实验已严格跑通并选择 bge-small。
 
 ## 简历描述草稿
 
@@ -218,6 +223,6 @@ $env:SMARTOFFICE_DISABLE_LLM="1"
 
 - 面向企业 HR、财务、IT、安全等制度咨询场景，针对“制度分散、员工重复咨询、答案难追溯”的痛点，构建可本地部署的 RAG 问答系统，支持政策查询、流程解释、材料清单、风险提醒和引用溯源。
 - 设计 Markdown + PDF 多格式制度知识库与结构化 metadata，完成文档解析、正式章条分块、向量索引持久化和部门/流程/风险等级过滤，沉淀 45 篇企业模拟制度与 324 条评估样本。
-- 从 LLM 直答 baseline 出发，依次验证整文档检索、固定窗口分块、结构化分块、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归中 Answer Accuracy Proxy 从 0.000 提升至 0.440，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。
-- 实现 BM25 与向量召回的混合检索链路，使用 RRF 融合排序，并结合主文档上下文补全和低置信拒答策略；完整 embedding 模型选型以 `run_experiments.py --full` 成功运行结果为准。
+- 从 LLM 直答 baseline 出发，依次验证整文档检索、固定窗口分块、结构化分块、纯向量、BM25+向量混合检索、RRF 融合与低置信拒答；真实 full 实验中 Answer Accuracy Proxy 从 0.000 提升至 0.476，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。
+- 实现 BM25 与向量召回的混合检索链路，使用 RRF 融合排序，并结合主文档上下文补全和低置信拒答策略；对比 bge-small、bge-base、multilingual-e5 后，选择 bge-small 作为最终 embedding。
 - 基于 Streamlit 部署可交互 Demo，展示回答、引用来源、检索片段、检索分数和评估指标；无 API key 时支持本地抽取式兜底，兼顾演示稳定性与调用成本。

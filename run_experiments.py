@@ -511,18 +511,27 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
     selected = selected_result["summary"] if selected_result else {}
     final_candidates = [result for result in completed if result["config"].get("final_candidate")]
     quality_leader = max(final_candidates, key=lambda result: selection_score(result["summary"]))["summary"] if final_candidates else selected
+    has_full = any(result["config"].get("stage") == "full" for result in results)
+    selected_label = "Selected full-candidate version" if has_full else "Selected quick-regression version"
+    leader_label = "Quality leader in full candidate pool" if final_candidates else "Quality leader in completed candidate pool"
+    story_prefix = "真实 embedding full 实验" if has_full else "当前 quick 回归"
+    embedding_note = (
+        "本次 full 实验已完成真实 embedding 配置；如有模型 skipped，应先修复模型缓存或网络后再引用结论。"
+        if has_full
+        else "quick runs validate the chain, while final embedding selection requires successful `--full` experiments."
+    )
     lines = [
         "# SmartOfficeRAG Experiment Report",
         "",
         "## Iteration Summary",
         "",
-        f"- Selected quick-regression version: {selected.get('id', 'N/A')} `{selected.get('name', 'N/A')}`",
-        f"- Quality leader in completed candidate pool: {quality_leader.get('id', 'N/A')} `{quality_leader.get('name', 'N/A')}`",
+        f"- {selected_label}: {selected.get('id', 'N/A')} `{selected.get('name', 'N/A')}`",
+        f"- {leader_label}: {quality_leader.get('id', 'N/A')} `{quality_leader.get('name', 'N/A')}`",
         f"- Answer Accuracy Proxy: {metric_delta(first, selected, 'answer_accuracy_proxy')}",
         f"- Hit@5: {metric_delta(first, selected, 'hit_at_5')}",
         f"- Citation Accuracy: {metric_delta(first, selected, 'citation_accuracy')}",
         f"- Refusal Accuracy: {metric_delta(first, selected, 'refusal_accuracy')}",
-        "- Selection rule: compare completed configs with a weighted quality score; quick runs validate the chain, while final embedding selection requires successful `--full` experiments.",
+        f"- Selection rule: compare completed configs with a weighted quality score; {embedding_note}",
         "",
         "## Experiment Matrix",
         "",
@@ -590,7 +599,7 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
             "",
             "## Resume-ready Story",
             "",
-            f"基于 {selected.get('total', 0)} 条制度问答评估集，从 `{first.get('name', 'baseline')}` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归使用轻量向量 baseline 验证链路收益，使 Answer Accuracy Proxy 从 {first.get('answer_accuracy_proxy', 0):.3f} 提升至 {selected.get('answer_accuracy_proxy', 0):.3f}，Citation Accuracy 从 {first.get('citation_accuracy', 0):.3f} 提升至 {selected.get('citation_accuracy', 0):.3f}，Refusal Accuracy 从 {first.get('refusal_accuracy', 0):.3f} 提升至 {selected.get('refusal_accuracy', 0):.3f}。真实 embedding 选型需以 `run_experiments.py --full` 成功完成 bge-small、bge-base 和 multilingual-e5 对比后的结果为准。",
+            f"基于 {selected.get('total', 0)} 条制度问答评估集，从 `{first.get('name', 'baseline')}` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；{story_prefix}验证链路收益，使 Answer Accuracy Proxy 从 {first.get('answer_accuracy_proxy', 0):.3f} 提升至 {selected.get('answer_accuracy_proxy', 0):.3f}，Citation Accuracy 从 {first.get('citation_accuracy', 0):.3f} 提升至 {selected.get('citation_accuracy', 0):.3f}，Refusal Accuracy 从 {first.get('refusal_accuracy', 0):.3f} 提升至 {selected.get('refusal_accuracy', 0):.3f}。",
             "",
         ]
     )
@@ -607,7 +616,8 @@ def main() -> None:
     mode = "full" if args.full else "quick"
     strict = mode == "full" and not args.offline and not args.allow_skip
 
-    if args.offline:
+    local_embedding_only = os.getenv("SMARTOFFICE_EMBEDDING_LOCAL_ONLY", "1") == "1"
+    if args.offline or local_embedding_only:
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
     else:

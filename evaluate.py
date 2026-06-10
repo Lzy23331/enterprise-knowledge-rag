@@ -382,7 +382,7 @@ def main() -> None:
         pdf_data_path=DEFAULT_CONFIG.pdf_data_path,
         pdf_loader_mode=DEFAULT_CONFIG.pdf_loader_mode,
         index_path=DEFAULT_CONFIG.index_path,
-        embedding_model=os.getenv("SMARTOFFICE_EVAL_EMBEDDING_MODEL", "local-hashing"),
+        embedding_model=os.getenv("SMARTOFFICE_EVAL_EMBEDDING_MODEL", DEFAULT_CONFIG.embedding_model),
         top_k=TOP_K,
         llm_model=DEFAULT_CONFIG.llm_model,
         llm_base_url=DEFAULT_CONFIG.llm_base_url,
