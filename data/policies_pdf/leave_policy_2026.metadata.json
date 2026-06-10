@@ -1,0 +1,20 @@
+{
+  "doc_id": "PDF-HR-LEAVE-PDF-2026",
+  "title": "员工休假管理办法",
+  "department": "HR",
+  "process_type": "休假申请",
+  "risk_level": "中",
+  "owner": "人力资源部",
+  "system": "员工服务系统",
+  "form_id": "HR-F-102",
+  "approval_sla": "年假连续超过五个工作日须提前七个工作日提交",
+  "version": "V2.0",
+  "effective_date": "2026-02-01",
+  "published_at": "2026年1月12日",
+  "updated_at": "2026-02-01",
+  "doc_type": "PDF正式制度",
+  "source_type": "pdf",
+  "policy_no": "HR-LEAVE-2026-02",
+  "company": "星河智联科技有限公司",
+  "cross_refs": "PDF-HR-ATT-2026"
+}

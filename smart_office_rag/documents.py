@@ -7,6 +7,10 @@ from .types import Document
 
 
 HEADER_PATTERN = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
+FORMAL_SECTION_PATTERN = re.compile(
+    r"^\s*(第[一二三四五六七八九十百0-9]+章\s+.+?|第[一二三四五六七八九十百0-9]+条\s*.*|附件[一二三四五六七八九十百0-9]+.*|附表[一二三四五六七八九十百0-9]+.*|修订记录|审批流程|解释权归属)\s*$",
+    re.MULTILINE,
+)
 
 
 class PolicyDocumentLoader:
@@ -48,13 +52,17 @@ class PolicyDocumentLoader:
                     overlap=self.fixed_chunk_overlap,
                 )
             elif self.chunk_strategy == "markdown_headers":
-                split_docs = self._split_markdown_by_headers(parent.page_content)
+                if parent.metadata.get("source_type") == "pdf":
+                    split_docs = self._split_formal_policy(parent.page_content)
+                else:
+                    split_docs = self._split_markdown_by_headers(parent.page_content)
             else:
                 raise ValueError(f"Unsupported chunk strategy: {self.chunk_strategy}")
 
             for index, chunk in enumerate(split_docs):
                 section = (
-                    chunk.metadata.get("section_3")
+                    chunk.metadata.get("section_path")
+                    or chunk.metadata.get("section_3")
                     or chunk.metadata.get("section_2")
                     or chunk.metadata.get("section_1")
                     or parent.metadata.get("title", "未知章节")
@@ -104,6 +112,50 @@ class PolicyDocumentLoader:
                 metadata["section_3"] = current_sections[3]
             documents.append(Document(page_content=content, metadata=metadata))
         return documents
+
+    @staticmethod
+    def _split_formal_policy(text: str) -> List[Document]:
+        matches = list(FORMAL_SECTION_PATTERN.finditer(text))
+        if not matches:
+            return [Document(page_content=text.strip(), metadata={})]
+
+        documents: List[Document] = []
+        current_chapter = ""
+        current_article = ""
+        for index, match in enumerate(matches):
+            title = PolicyDocumentLoader._normalize_formal_section_title(match.group(1))
+            start = match.start()
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            content = text[start:end].strip()
+            if not content:
+                continue
+
+            if title.startswith("第") and "章" in title:
+                current_chapter = title
+                current_article = ""
+                metadata = {"section_1": title}
+            elif title.startswith("第") and "条" in title:
+                current_article = title
+                metadata = {"section_1": current_chapter or "正文条款", "section_2": title}
+            else:
+                current_article = title
+                metadata = {"section_1": title}
+
+            if current_chapter and current_article and current_article != current_chapter:
+                metadata["section_path"] = f"{current_chapter} / {current_article}"
+            elif current_chapter:
+                metadata["section_path"] = current_chapter
+            else:
+                metadata["section_path"] = title
+            documents.append(Document(page_content=content, metadata=metadata))
+        return documents
+
+    @staticmethod
+    def _normalize_formal_section_title(title: str) -> str:
+        title = re.sub(r"\s+", " ", title).strip()
+        if "条" in title and len(title) > 28:
+            return title[:28].rstrip("，。；、：")
+        return title
 
     @staticmethod
     def _split_fixed_window(text: str, chunk_size: int = 900, overlap: int = 120) -> List[Document]:

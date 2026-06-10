@@ -1,0 +1,20 @@
+{
+  "doc_id": "PDF-HR-REMOTE-2026",
+  "title": "远程办公与异地协作管理规范",
+  "department": "HR",
+  "process_type": "远程办公",
+  "risk_level": "中",
+  "owner": "人力资源部与信息安全部",
+  "system": "员工服务系统",
+  "form_id": "HR-F-105",
+  "approval_sla": "连续远程办公超过三天须至少提前两个工作日提交申请",
+  "version": "V2.0",
+  "effective_date": "2026-02-01",
+  "published_at": "2026年1月25日",
+  "updated_at": "2026-02-01",
+  "doc_type": "PDF正式制度",
+  "source_type": "pdf",
+  "policy_no": "HR-REMOTE-2026-01",
+  "company": "星河智联科技有限公司",
+  "cross_refs": "PDF-SEC-INFO-2026"
+}

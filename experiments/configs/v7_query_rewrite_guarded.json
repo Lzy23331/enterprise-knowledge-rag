@@ -2,7 +2,7 @@
   "id": "V7",
   "name": "query_rewrite_metadata_guarded",
   "stage": "quick",
-  "description": "最终链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答。",
+  "description": "候选增强链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答，用于验证规则增强是否继续提升。",
   "chunk_strategy": "markdown_headers",
   "retriever": "hybrid_rrf",
   "embedding_model": "local-hashing",

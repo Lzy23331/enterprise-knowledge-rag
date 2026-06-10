@@ -22,7 +22,8 @@ from smart_office_rag.retrieval import KeywordRetriever
 from smart_office_rag.types import Document
 
 
-EVAL_PATH = PROJECT_ROOT / "data" / "eval" / "eval_cases.jsonl"
+EVAL_DIR = PROJECT_ROOT / "data" / "eval"
+EVAL_PATH = EVAL_DIR / "eval_cases.jsonl"
 JSON_REPORT_PATH = PROJECT_ROOT / "eval_report.json"
 MD_REPORT_PATH = PROJECT_ROOT / "eval_report.md"
 TOP_K = 5
@@ -32,11 +33,15 @@ STRATEGIES = ("llm_direct", "bm25_only", "vector_only", "hybrid_rrf")
 
 def load_cases(path: Path = EVAL_PATH) -> List[Dict[str, Any]]:
     cases = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
-            if line:
-                cases.append(json.loads(line))
+    paths = sorted(path.parent.glob("*.jsonl")) if path == EVAL_PATH else [path]
+    for case_path in paths:
+        with case_path.open("r", encoding="utf-8-sig") as handle:
+            for line in handle:
+                line = line.strip()
+                if line:
+                    case = json.loads(line)
+                    case.setdefault("eval_file", case_path.name)
+                    cases.append(case)
     return cases
 
 
@@ -166,7 +171,7 @@ def build_markdown_report(report: Dict[str, Any]) -> str:
         "",
         "## Metrics Notes",
         "",
-        "- Retrieval metrics use expected document IDs from `data/eval/eval_cases.jsonl`.",
+        "- Retrieval metrics use expected document IDs from all `data/eval/*.jsonl` files.",
         "- Faithfulness and answer correctness are deterministic proxies for local evaluation.",
         "- For rigorous judge-based scoring, add RAGAS/DeepEval-style LLM-as-a-judge on the same cases.",
         "",

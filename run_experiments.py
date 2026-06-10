@@ -26,7 +26,8 @@ OUTPUT_DIR = PROJECT_ROOT / "experiments" / "results"
 DOC_REPORT_PATH = PROJECT_ROOT / "docs" / "EXPERIMENT_REPORT.md"
 JSON_REPORT_PATH = OUTPUT_DIR / "experiment_report.json"
 CSV_REPORT_PATH = OUTPUT_DIR / "experiment_report.csv"
-EVAL_PATH = PROJECT_ROOT / "data" / "eval" / "eval_cases.jsonl"
+EVAL_DIR = PROJECT_ROOT / "data" / "eval"
+EVAL_PATH = EVAL_DIR / "eval_cases.jsonl"
 TOP_K = 5
 REFUSAL_MARKERS = ("没有检索到明确依据", "没有明确依据", "无法回答", "建议联系", "未检索到")
 
@@ -65,10 +66,13 @@ class ExperimentFailed(Exception):
 
 def load_cases() -> List[Dict[str, Any]]:
     cases = []
-    with EVAL_PATH.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            if line.strip():
-                cases.append(json.loads(line))
+    for path in sorted(EVAL_DIR.glob("*.jsonl")):
+        with path.open("r", encoding="utf-8-sig") as handle:
+            for line in handle:
+                if line.strip():
+                    case = json.loads(line)
+                    case.setdefault("eval_file", path.name)
+                    cases.append(case)
     return cases
 
 
@@ -512,13 +516,13 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
         "",
         "## Iteration Summary",
         "",
-        f"- Selected final version: {selected.get('id', 'N/A')} `{selected.get('name', 'N/A')}`",
-        f"- Quality leader: {quality_leader.get('id', 'N/A')} `{quality_leader.get('name', 'N/A')}`",
+        f"- Selected quick-regression version: {selected.get('id', 'N/A')} `{selected.get('name', 'N/A')}`",
+        f"- Quality leader in completed candidate pool: {quality_leader.get('id', 'N/A')} `{quality_leader.get('name', 'N/A')}`",
         f"- Answer Accuracy Proxy: {metric_delta(first, selected, 'answer_accuracy_proxy')}",
         f"- Hit@5: {metric_delta(first, selected, 'hit_at_5')}",
         f"- Citation Accuracy: {metric_delta(first, selected, 'citation_accuracy')}",
         f"- Refusal Accuracy: {metric_delta(first, selected, 'refusal_accuracy')}",
-        "- Selection rule: compare completed `final_candidate` configs; if weighted quality is within 0.005, choose the lower p95-latency model for deployment.",
+        "- Selection rule: compare completed configs with a weighted quality score; quick runs validate the chain, while final embedding selection requires successful `--full` experiments.",
         "",
         "## Experiment Matrix",
         "",
@@ -586,7 +590,7 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
             "",
             "## Resume-ready Story",
             "",
-            f"基于 232 条制度问答评估集，从 `{first.get('name', 'baseline')}` 出发，依次优化 chunk、embedding、BM25+向量混合检索、RRF 融合与低置信拒答；在线对比 bge-small、bge-base 和 multilingual-e5 后，发现 `{quality_leader.get('name', 'quality')}` 质量分略高，但 `{selected.get('name', 'final')}` 在核心指标接近的情况下 p95 延迟更低，因此选为部署链路，使 Answer Accuracy Proxy 从 {first.get('answer_accuracy_proxy', 0):.3f} 提升至 {selected.get('answer_accuracy_proxy', 0):.3f}，Citation Accuracy 从 {first.get('citation_accuracy', 0):.3f} 提升至 {selected.get('citation_accuracy', 0):.3f}，Refusal Accuracy 从 {first.get('refusal_accuracy', 0):.3f} 提升至 {selected.get('refusal_accuracy', 0):.3f}。",
+            f"基于 {selected.get('total', 0)} 条制度问答评估集，从 `{first.get('name', 'baseline')}` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归使用轻量向量 baseline 验证链路收益，使 Answer Accuracy Proxy 从 {first.get('answer_accuracy_proxy', 0):.3f} 提升至 {selected.get('answer_accuracy_proxy', 0):.3f}，Citation Accuracy 从 {first.get('citation_accuracy', 0):.3f} 提升至 {selected.get('citation_accuracy', 0):.3f}，Refusal Accuracy 从 {first.get('refusal_accuracy', 0):.3f} 提升至 {selected.get('refusal_accuracy', 0):.3f}。真实 embedding 选型需以 `run_experiments.py --full` 成功完成 bge-small、bge-base 和 multilingual-e5 对比后的结果为准。",
             "",
         ]
     )

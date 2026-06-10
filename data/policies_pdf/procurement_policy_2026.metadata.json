@@ -1,0 +1,20 @@
+{
+  "doc_id": "PDF-PROC-PURCHASE-2026",
+  "title": "采购申请与供应商准入管理制度",
+  "department": "Procurement",
+  "process_type": "采购申请",
+  "risk_level": "中",
+  "owner": "采购部与财务部",
+  "system": "采购管理平台",
+  "form_id": "PROC-F-801",
+  "approval_sla": "单笔金额超过十万元的采购应提前五个工作日发起评审",
+  "version": "V2.1",
+  "effective_date": "2026-02-15",
+  "published_at": "2026年2月3日",
+  "updated_at": "2026-02-15",
+  "doc_type": "PDF正式制度",
+  "source_type": "pdf",
+  "policy_no": "PROC-PUR-2026-01",
+  "company": "星河智联科技有限公司",
+  "cross_refs": "FIN-BUDGET-2026,PDF-FIN-EXP-2026"
+}

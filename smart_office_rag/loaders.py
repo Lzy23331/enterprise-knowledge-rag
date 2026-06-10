@@ -64,30 +64,30 @@ class PDFPolicyLoader:
             return documents
 
         for path in sorted(self.data_path.rglob("*.pdf")):
-            loaded = self._load_pdf(path)
-            documents.extend(self._merge_pages(path, loaded))
+            loaded, actual_loader = self._load_pdf(path)
+            documents.extend(self._merge_pages(path, loaded, actual_loader))
         return documents
 
-    def _load_pdf(self, path: Path) -> List[Document]:
+    def _load_pdf(self, path: Path) -> Tuple[List[Document], str]:
         if self.mode == "unstructured":
             try:
                 from langchain_community.document_loaders import UnstructuredPDFLoader
 
-                return UnstructuredPDFLoader(str(path), mode="elements").load()
+                return UnstructuredPDFLoader(str(path), mode="elements").load(), "UnstructuredPDFLoader"
             except Exception as exc:
                 print(f"UnstructuredPDFLoader unavailable for {path.name}, falling back to PyPDFLoader: {exc}")
 
         try:
             from langchain_community.document_loaders import PyPDFLoader
 
-            return PyPDFLoader(str(path)).load()
+            return PyPDFLoader(str(path)).load(), "PyPDFLoader"
         except Exception as exc:
             raise RuntimeError(
                 "PDF loading requires `pypdf` and `langchain-community`. "
                 "Install full dependencies with `pip install -r requirements-full.txt`."
             ) from exc
 
-    def _merge_pages(self, path: Path, loaded_docs: List[Document]) -> List[Document]:
+    def _merge_pages(self, path: Path, loaded_docs: List[Document], actual_loader: str) -> List[Document]:
         if not loaded_docs:
             return []
 
@@ -119,7 +119,7 @@ class PDFPolicyLoader:
                 "source_path": str(path),
                 "source_file": relative_path,
                 "source_type": "pdf",
-                "loader": "UnstructuredPDFLoader" if self.mode == "unstructured" else "PyPDFLoader",
+                "loader": actual_loader,
                 "page_numbers": ",".join(str(number) for number in sorted(set(page_numbers))),
                 "chunk_type": "parent",
             }
