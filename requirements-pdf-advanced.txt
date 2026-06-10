@@ -1,0 +1,7 @@
+# Optional heavy PDF parsing stack.
+# Install this only when you need to experiment with UnstructuredPDFLoader
+# for scanned PDFs, complex tables, or layout-heavy documents.
+#
+# The main project uses PyPDFLoader by default because current policy PDFs
+# are digital text documents and PyPDFLoader is much lighter and faster.
+unstructured[pdf]>=0.15.0,<1.0.0

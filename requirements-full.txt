@@ -9,4 +9,3 @@ openai>=1.86.0,<2.0.0
 numpy>=2.0.0,<2.3.0
 pypdf>=4.0.0,<6.0.0
 reportlab>=4.0.0,<5.0.0
-unstructured[pdf]>=0.15.0,<1.0.0

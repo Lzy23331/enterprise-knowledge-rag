@@ -2,4 +2,6 @@ vector_index/
 __pycache__/
 .env
 .venv/
+.venv_broken*/
+.vscode/
 .cache/
