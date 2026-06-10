@@ -138,10 +138,18 @@ def render_chunk(index: int, doc) -> None:
         st.json(
             {
                 "doc_id": doc.metadata.get("doc_id"),
+                "source_type": doc.metadata.get("source_type"),
+                "loader": doc.metadata.get("loader"),
                 "section": doc.metadata.get("section"),
+                "section_type": doc.metadata.get("section_type"),
+                "chapter_no": doc.metadata.get("chapter_no"),
+                "article_no": doc.metadata.get("article_no"),
                 "department": doc.metadata.get("department"),
                 "process_type": doc.metadata.get("process_type"),
                 "risk_level": doc.metadata.get("risk_level"),
+                "page_count": doc.metadata.get("page_count"),
+                "extraction_quality": doc.metadata.get("extraction_quality"),
+                "missing_required_metadata": doc.metadata.get("missing_required_metadata"),
                 "vector_rank": doc.metadata.get("vector_rank"),
                 "vector_score": doc.metadata.get("vector_score"),
                 "bm25_rank": doc.metadata.get("bm25_rank"),

@@ -8,6 +8,20 @@ from .types import Document
 
 
 FRONT_MATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
+REQUIRED_SIDECAR_FIELDS = (
+    "doc_id",
+    "title",
+    "department",
+    "process_type",
+    "risk_level",
+    "owner",
+    "system",
+    "form_id",
+    "approval_sla",
+    "version",
+    "effective_date",
+    "source_type",
+)
 
 
 def parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
@@ -93,17 +107,20 @@ class PDFPolicyLoader:
 
         first_text = loaded_docs[0].page_content or ""
         metadata, stripped_first = parse_front_matter(first_text)
-        metadata.update(self._load_sidecar_metadata(path))
+        sidecar_metadata = self._load_sidecar_metadata(path)
+        metadata.update(sidecar_metadata)
         relative_path = path.relative_to(self.data_path).as_posix()
         doc_id = metadata.get("doc_id") or stable_doc_id(relative_path)
 
         page_texts = []
         page_numbers = []
+        raw_text_length = 0
         for index, doc in enumerate(loaded_docs, 1):
             text = doc.page_content or ""
             if index == 1 and metadata:
                 text = stripped_first
             text = text.strip()
+            raw_text_length += len(text)
             if text:
                 page_texts.append(text)
             page = doc.metadata.get("page", index - 1)
@@ -112,6 +129,8 @@ class PDFPolicyLoader:
             except Exception:
                 page_numbers.append(index)
 
+        merged_text = "\n\n".join(page_texts).strip()
+        missing_required = [field for field in REQUIRED_SIDECAR_FIELDS if not metadata.get(field)]
         metadata.update(
             {
                 "doc_id": doc_id,
@@ -121,10 +140,17 @@ class PDFPolicyLoader:
                 "source_type": "pdf",
                 "loader": actual_loader,
                 "page_numbers": ",".join(str(number) for number in sorted(set(page_numbers))),
+                "page_count": str(len(loaded_docs)),
+                "extracted_page_count": str(len(page_texts)),
+                "text_length": str(len(merged_text)),
+                "avg_chars_per_page": f"{(raw_text_length / max(len(loaded_docs), 1)):.1f}",
+                "has_sidecar_metadata": str(bool(sidecar_metadata)).lower(),
+                "missing_required_metadata": ",".join(missing_required),
+                "extraction_quality": self._assess_extraction_quality(len(loaded_docs), len(page_texts), len(merged_text), missing_required),
                 "chunk_type": "parent",
             }
         )
-        return [Document(page_content="\n\n".join(page_texts).strip(), metadata=metadata)]
+        return [Document(page_content=merged_text, metadata=metadata)]
 
     def _load_sidecar_metadata(self, path: Path) -> Dict[str, str]:
         for sidecar in (path.with_suffix(".metadata.json"), path.with_suffix(path.suffix + ".json")):
@@ -133,6 +159,18 @@ class PDFPolicyLoader:
             payload = json.loads(sidecar.read_text(encoding="utf-8"))
             return {str(key): str(value) for key, value in payload.items()}
         return {}
+
+    @staticmethod
+    def _assess_extraction_quality(page_count: int, extracted_page_count: int, text_length: int, missing_required: List[str]) -> str:
+        if page_count == 0 or extracted_page_count == 0 or text_length == 0:
+            return "empty_text"
+        if missing_required:
+            return "metadata_incomplete"
+        if extracted_page_count / max(page_count, 1) < 0.8:
+            return "partial_text"
+        if text_length / max(page_count, 1) < 250:
+            return "low_text_density"
+        return "ok"
 
 
 class MultiFormatPolicyLoader:

@@ -133,7 +133,7 @@ eval_report.md
 | 制度文档 | 45 |
 | Markdown 制度 | 30 |
 | PDF 制度 | 15 |
-| chunk | 896 |
+| chunk | 833 |
 | 评估样本 | 324 |
 | 知识库内检索样本 | 300 |
 | 知识库外拒答样本 | 24 |
@@ -387,6 +387,20 @@ sidecar 至少包含：
 - PDF 抽文本对字体、分页、表格很敏感，不能依赖正文 front matter。
 - sidecar 可以稳定提供检索过滤、引用、评估需要的字段。
 
+PDF loader 会在 sidecar 基础上继续补充解析质检字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `page_count` | PDF 页数 |
+| `extracted_page_count` | 成功抽出文本的页数 |
+| `text_length` | 合并后的正文字符数 |
+| `avg_chars_per_page` | 平均每页抽取字符数 |
+| `has_sidecar_metadata` | 是否读取到同名 metadata JSON |
+| `missing_required_metadata` | 缺失的关键 metadata 字段 |
+| `extraction_quality` | `ok`、`empty_text`、`partial_text`、`low_text_density` 或 `metadata_incomplete` |
+
+这一步的意义是：PDF 虽然是非结构化正文，但进入 RAG 链路前会先经过“可观测的接入质检”。如果将来接入扫描件、空白页、错误 PDF 或 metadata 缺失文件，系统能在 loader 层暴露问题，而不是等到检索失败后才发现。
+
 ### 3.4 `data/eval/`：评估集
 
 现在评估脚本读取目录下所有 JSONL：
@@ -402,11 +416,11 @@ data/eval/pdf_eval_cases.jsonl
 
 ```json
 {
-  "id": "pdf_attendance_2026_sla",
-  "question": "考勤异常申诉应在多久内提交？",
-  "expected_doc_ids": ["PDF-HR-ATT-2026"],
-  "expected_sections": ["第三章 办理要求"],
-  "reference_answer": "考勤异常申诉应在三个工作日内提交。",
+  "id": "hr_handbook_2026_sla",
+  "question": "员工手册的审批或办理时限是什么？",
+  "expected_doc_ids": ["PDF-HR-HANDBOOK-2026"],
+  "expected_sections": ["审批流程"],
+  "reference_answer": "标准办理时限为：员工手册争议解释应在五个工作日内反馈。",
   "question_type": "PDF-时限型",
   "department": "HR",
   "should_refuse": false
@@ -566,22 +580,38 @@ PDF 正式条款分块识别：
 附表一 ...
 审批流程
 修订记录
+典型场景与处理口径
+监督检查矩阵
 解释权归属
 ```
 
-PDF chunk 会维护 `section_path`，例如：
+PDF chunk 会维护 `section_path`、`section_type`、`chapter_no`、`article_no` 等语义字段，例如：
 
 ```text
-第三章 办理要求 / 第六条 标准办理时限为：考勤异常申诉应在三个工作日内提交
+第五章 异常申诉与月度结算 / 第十八条 考勤异常申诉应在异常发生后三个工作日内提交
 ```
 
 页面引用会显示成类似：
 
 ```text
-《员工考勤管理制度》第三章 办理要求 / 第六条 标准办理时限为...
+《员工考勤管理制度》第五章 异常申诉与月度结算 / 第十八条 考勤异常申诉应在异常发生后三个工作日内提交...
 ```
 
 这比只显示“第 2 页”更适合制度问答，因为用户真正关心的是条款依据。
+
+当前 PDF chunk 的 `section_type` 包括：
+
+| section_type | 含义 |
+| --- | --- |
+| `chapter` | 正文章节 |
+| `article` | 具体制度条款 |
+| `approval_flow` | 审批流程 |
+| `revision_record` | 修订记录 |
+| `appendix` | 附件 |
+| `appendix_table` | 附表 |
+| `scenario_notes` | 典型场景与处理口径 |
+| `control_matrix` | 监督检查矩阵 |
+| `explanation` | 解释权归属 |
 
 ### 4.5 `indexing.py`
 
@@ -816,13 +846,13 @@ experiments/
 | Version | Strategy | Answer Acc. | Hit@5 | Citation | Refusal |
 | --- | --- | ---: | ---: | ---: | ---: |
 | V0 | llm_direct_no_retrieval | 0.000 | 0.000 | 0.074 | 0.000 |
-| V1 | keyword_whole_document | 0.368 | 0.947 | 0.178 | 0.042 |
-| V2 | bm25_fixed_window | 0.542 | 0.993 | 0.460 | 0.042 |
-| V3 | bm25_header_chunk | 0.536 | 0.963 | 0.764 | 0.042 |
-| V4 | vector_local_hashing_numpy | 0.253 | 0.753 | 0.290 | 0.000 |
-| V5 | bm25_vector_rrf_numpy | 0.431 | 0.903 | 0.836 | 0.000 |
-| V6 | hybrid_rrf_with_refusal_gate | 0.431 | 0.903 | 0.901 | 1.000 |
-| V7 | query_rewrite_metadata_guarded | 0.437 | 0.900 | 0.898 | 1.000 |
+| V1 | keyword_whole_document | 0.382 | 0.997 | 0.188 | 0.042 |
+| V2 | bm25_fixed_window | 0.508 | 1.000 | 0.458 | 0.042 |
+| V3 | bm25_header_chunk | 0.416 | 0.973 | 0.794 | 0.042 |
+| V4 | vector_local_hashing_numpy | 0.221 | 0.783 | 0.332 | 0.000 |
+| V5 | bm25_vector_rrf_numpy | 0.440 | 0.903 | 0.836 | 0.000 |
+| V6 | hybrid_rrf_with_refusal_gate | 0.440 | 0.903 | 0.901 | 1.000 |
+| V7 | query_rewrite_metadata_guarded | 0.445 | 0.900 | 0.898 | 1.000 |
 
 这里的 V4/V5/V6 仍然使用 `local-hashing`，所以只能作为 quick 工程回归，不能代表真实 embedding 模型最终选型。
 

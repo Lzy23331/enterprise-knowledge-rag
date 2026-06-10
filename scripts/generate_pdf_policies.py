@@ -174,11 +174,7 @@ def build_formal_story(spec: dict, styles: dict) -> list:
         Spacer(1, 8),
         paragraph("审批流程", "chapter", styles),
         approval_table(spec, styles),
-        Spacer(1, 8),
-        paragraph("制度目录", "chapter", styles),
     ]
-    for index, section in enumerate(spec["sections"], 1):
-        story.append(paragraph(f"{chapter_title(index, section['title'])}", "body_no_indent", styles))
     story.append(PageBreak())
 
     article_no = 1

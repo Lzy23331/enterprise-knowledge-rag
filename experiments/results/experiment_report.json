@@ -4,15 +4,15 @@
     "total": 324,
     "retrieval_cases": 300,
     "refusal_cases": 24,
-    "answer_accuracy_proxy": 0.43110507444765106,
+    "answer_accuracy_proxy": 0.4401868729743126,
     "hit_at_5": 0.9033333333333333,
     "mrr_at_5": 0.9033333333333333,
     "citation_accuracy": 0.9012345679012346,
     "refusal_accuracy": 1.0,
     "faithfulness_proxy": 0.9104938271604939,
-    "latency_p50_ms": 8.876600011717528,
-    "latency_p95_ms": 14.013900014106184,
-    "latency_avg_ms": 8.891626850617072,
+    "latency_p50_ms": 11.998999980278313,
+    "latency_p95_ms": 18.718899984378368,
+    "latency_avg_ms": 11.674740741224845,
     "id": "V6",
     "name": "hybrid_rrf_with_refusal_gate",
     "status": "completed",
@@ -23,8 +23,8 @@
     "query_rewrite": false,
     "metadata_filter": false,
     "refusal_gate": true,
-    "index_build_ms": 315.3457000153139,
-    "chunks": 896
+    "index_build_ms": 328.42770003480837,
+    "chunks": 833
   },
   "results": [
     {
@@ -59,7 +59,7 @@
         "faithfulness_proxy": 0.07407407407407407,
         "latency_p50_ms": 0.000100000761449337,
         "latency_p95_ms": 0.000200001522898674,
-        "latency_avg_ms": 0.0001268517398447902,
+        "latency_avg_ms": 0.00013456784798131314,
         "id": "V0",
         "name": "llm_direct_no_retrieval",
         "status": "completed",
@@ -101,7 +101,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.00100000761449337
+            "latency_ms": 0.0013999524526298046
           }
         },
         {
@@ -131,7 +131,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000900006853044033
+            "latency_ms": 0.001200009137392044
           }
         },
         {
@@ -161,7 +161,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000300002284348011
+            "latency_ms": 0.000400003045797348
           }
         },
         {
@@ -191,7 +191,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000200001522898674
+            "latency_ms": 0.000400003045797348
           }
         },
         {
@@ -221,7 +221,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000200001522898674
+            "latency_ms": 0.000100000761449337
           }
         },
         {
@@ -252,7 +252,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000200001522898674
+            "latency_ms": 0.000300002284348011
           }
         },
         {
@@ -284,7 +284,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 9.994255378842354e-05
+            "latency_ms": 0.000200001522898674
           }
         },
         {
@@ -314,7 +314,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000100000761449337
+            "latency_ms": 0.000200001522898674
           }
         },
         {
@@ -344,7 +344,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.000100000761449337
+            "latency_ms": 0.000200001522898674
           }
         },
         {
@@ -409,9 +409,9 @@
         "citation_accuracy": 0.18765432098765433,
         "refusal_accuracy": 0.041666666666666664,
         "faithfulness_proxy": 0.18765432098765433,
-        "latency_p50_ms": 30.147300043608993,
-        "latency_p95_ms": 46.29080003360286,
-        "latency_avg_ms": 32.05788611160609,
+        "latency_p50_ms": 30.089600011706352,
+        "latency_p95_ms": 46.37480003293604,
+        "latency_avg_ms": 32.32529598581432,
         "id": "V1",
         "name": "keyword_whole_document",
         "status": "completed",
@@ -422,7 +422,7 @@
         "query_rewrite": false,
         "metadata_filter": false,
         "refusal_gate": false,
-        "index_build_ms": 0.009600014891475439,
+        "index_build_ms": 0.006699992809444666,
         "chunks": 45
       },
       "failure_cases": [
@@ -515,7 +515,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3974358974358974,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 45.69439997430891
+            "latency_ms": 31.413599965162575
           }
         },
         {
@@ -607,7 +607,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3387096774193548,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 27.56110002519563
+            "latency_ms": 31.48419997887686
           }
         },
         {
@@ -699,7 +699,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.039473684210526314,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 27.039800013881177
+            "latency_ms": 29.514499998185784
           }
         },
         {
@@ -791,7 +791,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.32,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 27.381799998693168
+            "latency_ms": 36.53209999902174
           }
         },
         {
@@ -883,7 +883,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.6923076923076923,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 30.22020001662895
+            "latency_ms": 36.880899977404624
           }
         },
         {
@@ -976,7 +976,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.7678571428571429,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 35.61429999535903
+            "latency_ms": 32.76669996557757
           }
         },
         {
@@ -1070,7 +1070,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.28205128205128205,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 30.479099950753152
+            "latency_ms": 28.850700007751584
           }
         },
         {
@@ -1162,7 +1162,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.4050632911392405,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 27.312399994116277
+            "latency_ms": 28.754099970683455
           }
         },
         {
@@ -1254,7 +1254,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3387096774193548,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 28.093600005377084
+            "latency_ms": 29.85130000161007
           }
         },
         {
@@ -1346,7 +1346,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 27.989700029138476
+            "latency_ms": 38.940400001592934
           }
         }
       ]
@@ -1375,15 +1375,15 @@
         "total": 324,
         "retrieval_cases": 300,
         "refusal_cases": 24,
-        "answer_accuracy_proxy": 0.5041793378683508,
-        "hit_at_5": 0.9966666666666667,
-        "mrr_at_5": 0.9421666666666667,
-        "citation_accuracy": 0.46049382716049386,
+        "answer_accuracy_proxy": 0.508396725808129,
+        "hit_at_5": 1.0,
+        "mrr_at_5": 0.9472777777777778,
+        "citation_accuracy": 0.4580246913580247,
         "refusal_accuracy": 0.041666666666666664,
-        "faithfulness_proxy": 0.46049382716049386,
-        "latency_p50_ms": 1.5112000401131809,
-        "latency_p95_ms": 3.0661000055260956,
-        "latency_avg_ms": 1.7102499987231568,
+        "faithfulness_proxy": 0.4580246913580247,
+        "latency_p50_ms": 1.4673999976366758,
+        "latency_p95_ms": 2.1083999890834093,
+        "latency_avg_ms": 1.4642790120876865,
         "id": "V2",
         "name": "bm25_fixed_window",
         "status": "completed",
@@ -1394,8 +1394,8 @@
         "query_rewrite": false,
         "metadata_filter": false,
         "refusal_gate": false,
-        "index_build_ms": 62.65979999443516,
-        "chunks": 119
+        "index_build_ms": 71.16799999494106,
+        "chunks": 118
       },
       "failure_cases": [
         {
@@ -1444,9 +1444,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 1",
+              "citation": "《员工休假管理办法》固定窗口片段 3",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 1",
+              "section": "固定窗口片段 3",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1455,9 +1455,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 3",
+              "citation": "《员工休假管理办法》固定窗口片段 1",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 3",
+              "section": "固定窗口片段 1",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1487,7 +1487,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.5769230769230769,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 2.8657999937422574
+            "latency_ms": 1.656099979300052
           }
         },
         {
@@ -1536,9 +1536,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 1",
+              "citation": "《员工休假管理办法》固定窗口片段 2",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 1",
+              "section": "固定窗口片段 2",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1547,9 +1547,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 2",
+              "citation": "《员工休假管理办法》固定窗口片段 1",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 2",
+              "section": "固定窗口片段 1",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1579,7 +1579,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3548387096774194,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 0.8256000000983477
+            "latency_ms": 0.9312999900430441
           }
         },
         {
@@ -1671,7 +1671,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.15789473684210525,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 1.0522999800741673
+            "latency_ms": 1.1878000223077834
           }
         },
         {
@@ -1731,9 +1731,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 1",
+              "citation": "《员工休假管理办法》固定窗口片段 2",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 1",
+              "section": "固定窗口片段 2",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1742,9 +1742,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 2",
+              "citation": "《员工休假管理办法》固定窗口片段 1",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 2",
+              "section": "固定窗口片段 1",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1763,7 +1763,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.74,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 1.3983999961055815
+            "latency_ms": 1.6060000052675605
           }
         },
         {
@@ -1812,9 +1812,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 1",
+              "citation": "《员工休假管理办法》固定窗口片段 3",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 1",
+              "section": "固定窗口片段 3",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1823,9 +1823,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》固定窗口片段 3",
+              "citation": "《员工休假管理办法》固定窗口片段 1",
               "title": "员工休假管理办法",
-              "section": "固定窗口片段 3",
+              "section": "固定窗口片段 1",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -1855,7 +1855,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.8076923076923077,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 1.1910999892279506
+            "latency_ms": 1.4479999663308263
           }
         },
         {
@@ -1948,7 +1948,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.7678571428571429,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 1.9233999773859978
+            "latency_ms": 1.2591000413522124
           }
         },
         {
@@ -1969,12 +1969,23 @@
           "eval_file": "eval_cases.jsonl",
           "retrieved_doc_ids": [
             "PDF-HR-LEAVE-PDF-2026",
+            "PDF-HR-LEAVE-PDF-2026",
             "HR-LEAVE-2026",
             "HR-LEAVE-2026",
-            "PDF-PROC-PURCHASE-2026",
             "PDF-SEC-DATAEXPORT-2026"
           ],
           "sources": [
+            {
+              "doc_id": "PDF-HR-LEAVE-PDF-2026",
+              "citation": "《员工休假管理办法》固定窗口片段 2",
+              "title": "员工休假管理办法",
+              "section": "固定窗口片段 2",
+              "department": "HR",
+              "process_type": "休假申请",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "leave_policy_2026.pdf"
+            },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
               "citation": "《员工休假管理办法》固定窗口片段 3",
@@ -2009,17 +2020,6 @@
               "source_file": "hr_leave_2026.md"
             },
             {
-              "doc_id": "PDF-PROC-PURCHASE-2026",
-              "citation": "《采购申请与供应商准入管理制度》固定窗口片段 4",
-              "title": "采购申请与供应商准入管理制度",
-              "section": "固定窗口片段 4",
-              "department": "Procurement",
-              "process_type": "采购申请",
-              "risk_level": "中",
-              "updated_at": "2026-02-15",
-              "source_file": "procurement_policy_2026.pdf"
-            },
-            {
               "doc_id": "PDF-SEC-DATAEXPORT-2026",
               "citation": "《客户数据导出与外发审批制度》固定窗口片段 3",
               "title": "客户数据导出与外发审批制度",
@@ -2036,13 +2036,13 @@
             "hit_at_5": 1.0,
             "recall_at_5": 1.0,
             "context_precision_at_5": 0.4,
-            "mrr_at_5": 0.5,
-            "ndcg_at_5": 0.6309297535714575,
+            "mrr_at_5": 0.3333333333333333,
+            "ndcg_at_5": 0.5,
             "citation_accuracy": 0.4,
             "refusal_accuracy": 0.0,
-            "answer_correctness_proxy": 0.11538461538461539,
+            "answer_correctness_proxy": 0.16666666666666666,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 1.4711000258103013
+            "latency_ms": 1.7355000018142164
           }
         },
         {
@@ -2134,7 +2134,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.5822784810126582,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 1.1620000004768372
+            "latency_ms": 1.2836999958381057
           }
         },
         {
@@ -2183,9 +2183,9 @@
             },
             {
               "doc_id": "PDF-HR-ONOFF-2026",
-              "citation": "《员工入离职流程说明》固定窗口片段 4",
+              "citation": "《员工入离职流程说明》固定窗口片段 2",
               "title": "员工入离职流程说明",
-              "section": "固定窗口片段 4",
+              "section": "固定窗口片段 2",
               "department": "HR",
               "process_type": "入离职流程",
               "risk_level": "中",
@@ -2194,9 +2194,9 @@
             },
             {
               "doc_id": "PDF-HR-ONOFF-2026",
-              "citation": "《员工入离职流程说明》固定窗口片段 2",
+              "citation": "《员工入离职流程说明》固定窗口片段 4",
               "title": "员工入离职流程说明",
-              "section": "固定窗口片段 2",
+              "section": "固定窗口片段 4",
               "department": "HR",
               "process_type": "入离职流程",
               "risk_level": "中",
@@ -2224,9 +2224,9 @@
             "ndcg_at_5": 0.38685280723454163,
             "citation_accuracy": 0.2,
             "refusal_accuracy": 0.0,
-            "answer_correctness_proxy": 0.2903225806451613,
+            "answer_correctness_proxy": 0.25806451612903225,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 0.7771000382490456
+            "latency_ms": 0.8779999916441739
           }
         },
         {
@@ -2318,7 +2318,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0875,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 1.0843999916687608
+            "latency_ms": 1.2528999941423535
           }
         }
       ]
@@ -2347,15 +2347,15 @@
         "total": 324,
         "retrieval_cases": 300,
         "refusal_cases": 24,
-        "answer_accuracy_proxy": 0.3987800076404877,
+        "answer_accuracy_proxy": 0.4162773406408215,
         "hit_at_5": 0.9733333333333334,
-        "mrr_at_5": 0.9261111111111111,
-        "citation_accuracy": 0.7972222222222223,
+        "mrr_at_5": 0.9244444444444444,
+        "citation_accuracy": 0.7944444444444444,
         "refusal_accuracy": 0.041666666666666664,
-        "faithfulness_proxy": 0.7972222222222223,
-        "latency_p50_ms": 6.874399958178401,
-        "latency_p95_ms": 11.359800002537668,
-        "latency_avg_ms": 7.1511490751606885,
+        "faithfulness_proxy": 0.7944444444444444,
+        "latency_p50_ms": 8.733100024983287,
+        "latency_p95_ms": 13.00550001906231,
+        "latency_avg_ms": 8.727667282477746,
         "id": "V3",
         "name": "bm25_header_chunk",
         "status": "completed",
@@ -2366,8 +2366,8 @@
         "query_rewrite": false,
         "metadata_filter": false,
         "refusal_gate": false,
-        "index_build_ms": 149.35359999071807,
-        "chunks": 896
+        "index_build_ms": 176.34230002295226,
+        "chunks": 833
       },
       "failure_cases": [
         {
@@ -2461,7 +2461,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.10256410256410256,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 6.737000017892569
+            "latency_ms": 11.344800004735589
           }
         },
         {
@@ -2553,7 +2553,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.2903225806451613,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 3.277699986938387
+            "latency_ms": 6.25669996952638
           }
         },
         {
@@ -2645,7 +2645,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 4.828999983146787
+            "latency_ms": 8.343600027728826
           }
         },
         {
@@ -2738,7 +2738,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.5263157894736842,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 6.33079995168373
+            "latency_ms": 9.043099998962134
           }
         },
         {
@@ -2832,7 +2832,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1282051282051282,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 6.434200040530413
+            "latency_ms": 9.828499983996153
           }
         },
         {
@@ -2924,7 +2924,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.16129032258064516,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 4.127599997445941
+            "latency_ms": 4.98120003612712
           }
         },
         {
@@ -3016,7 +3016,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.29333333333333333,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 5.402299982961267
+            "latency_ms": 6.8644999992102385
           }
         },
         {
@@ -3085,6 +3085,17 @@
               "risk_level": "中",
               "updated_at": "2026-02-01",
               "source_file": "performance_review_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-HR-PERF-2026",
+              "citation": "《绩效考核与申诉管理办法》第一章 目标设定与过程反馈 / 第二条 相关人员应在绩效管理系统中留存流程编号、处理意见",
+              "title": "绩效考核与申诉管理办法",
+              "section": "第一章 目标设定与过程反馈 / 第二条 相关人员应在绩效管理系统中留存流程编号、处理意见",
+              "department": "HR",
+              "process_type": "绩效考核",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "performance_review_2026.pdf"
             }
           ],
           "refused": false,
@@ -3094,11 +3105,11 @@
             "context_precision_at_5": 0.2,
             "mrr_at_5": 1.0,
             "ndcg_at_5": 1.0,
-            "citation_accuracy": 0.25,
+            "citation_accuracy": 0.2,
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.5,
-            "faithfulness_proxy": 0.25,
-            "latency_ms": 6.141000019852072
+            "faithfulness_proxy": 0.2,
+            "latency_ms": 11.516599974129349
           }
         },
         {
@@ -3192,7 +3203,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0945945945945946,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 6.429400003980845
+            "latency_ms": 11.124499957077205
           }
         },
         {
@@ -3286,7 +3297,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.10256410256410256,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 5.800299986731261
+            "latency_ms": 8.704200037755072
           }
         }
       ]
@@ -3315,15 +3326,15 @@
         "total": 324,
         "retrieval_cases": 300,
         "refusal_cases": 24,
-        "answer_accuracy_proxy": 0.21613480837255408,
-        "hit_at_5": 0.7866666666666666,
-        "mrr_at_5": 0.6877777777777778,
-        "citation_accuracy": 0.3487654320987654,
+        "answer_accuracy_proxy": 0.2205896941640224,
+        "hit_at_5": 0.7833333333333333,
+        "mrr_at_5": 0.6885,
+        "citation_accuracy": 0.33209876543209876,
         "refusal_accuracy": 0.0,
-        "faithfulness_proxy": 0.3487654320987654,
-        "latency_p50_ms": 0.1446999958716333,
-        "latency_p95_ms": 0.38839998887851834,
-        "latency_avg_ms": 0.18100370347563086,
+        "faithfulness_proxy": 0.33209876543209876,
+        "latency_p50_ms": 0.18400000408291817,
+        "latency_p95_ms": 0.2956999815069139,
+        "latency_avg_ms": 0.20041882889029097,
         "id": "V4",
         "name": "vector_local_hashing_numpy",
         "status": "completed",
@@ -3334,8 +3345,8 @@
         "query_rewrite": false,
         "metadata_filter": false,
         "refusal_gate": false,
-        "index_build_ms": 176.3918999931775,
-        "chunks": 896
+        "index_build_ms": 170.8275999990292,
+        "chunks": 833
       },
       "failure_cases": [
         {
@@ -3427,7 +3438,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1282051282051282,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 3.213199961464852
+            "latency_ms": 0.473200052510947
           }
         },
         {
@@ -3519,7 +3530,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.25806451612903225,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.22050004918128252
+            "latency_ms": 0.2031000331044197
           }
         },
         {
@@ -3611,7 +3622,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3157894736842105,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.18850003834813833
+            "latency_ms": 0.19890000112354755
           }
         },
         {
@@ -3631,9 +3642,9 @@
           "retrieved_doc_ids": [
             "HR-LEAVE-2026",
             "PDF-HR-LEAVE-PDF-2026",
-            "PDF-FIN-EXP-2026",
             "PDF-HR-LEAVE-PDF-2026",
-            "PDF-HR-ATT-2026"
+            "PDF-FIN-EXP-2026",
+            "PDF-HR-LEAVE-PDF-2026"
           ],
           "sources": [
             {
@@ -3649,25 +3660,14 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
               "updated_at": "2026-02-01",
               "source_file": "leave_policy_2026.pdf"
-            },
-            {
-              "doc_id": "PDF-FIN-EXP-2026",
-              "citation": "《费用报销与票据管理制度》第五章 付款、核销与审计 / 第二十一条 发现虚假报销、重复报销或挪用资金的，应移交员",
-              "title": "费用报销与票据管理制度",
-              "section": "第五章 付款、核销与审计 / 第二十一条 发现虚假报销、重复报销或挪用资金的，应移交员",
-              "department": "Finance",
-              "process_type": "报销申请",
-              "risk_level": "中",
-              "updated_at": "2026-02-01",
-              "source_file": "expense_reimbursement_2026.pdf"
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
@@ -3681,15 +3681,26 @@
               "source_file": "leave_policy_2026.pdf"
             },
             {
-              "doc_id": "PDF-HR-ATT-2026",
-              "citation": "《员工考勤管理制度》第四章 请假、出差与考勤衔接 / 第十六条 员工因病假、婚假、产检假等原因不能正常打卡的",
-              "title": "员工考勤管理制度",
-              "section": "第四章 请假、出差与考勤衔接 / 第十六条 员工因病假、婚假、产检假等原因不能正常打卡的",
-              "department": "HR",
-              "process_type": "考勤管理",
+              "doc_id": "PDF-FIN-EXP-2026",
+              "citation": "《费用报销与票据管理制度》第五章 付款、核销与审计 / 监督检查矩阵",
+              "title": "费用报销与票据管理制度",
+              "section": "第五章 付款、核销与审计 / 监督检查矩阵",
+              "department": "Finance",
+              "process_type": "报销申请",
               "risk_level": "中",
               "updated_at": "2026-02-01",
-              "source_file": "attendance_policy_2026.pdf"
+              "source_file": "expense_reimbursement_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-HR-LEAVE-PDF-2026",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "title": "员工休假管理办法",
+              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "department": "HR",
+              "process_type": "休假申请",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "leave_policy_2026.pdf"
             }
           ],
           "refused": false,
@@ -3703,7 +3714,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.24,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 0.17500005196779966
+            "latency_ms": 0.1960000372491777
           }
         },
         {
@@ -3723,8 +3734,8 @@
           "retrieved_doc_ids": [
             "HR-LEAVE-2026",
             "PDF-HR-ATT-2026",
-            "PDF-FIN-EXP-2026",
             "FIN-EXP-2026",
+            "PDF-FIN-EXP-2026",
             "PDF-FIN-EXP-2026"
           ],
           "sources": [
@@ -3751,17 +3762,6 @@
               "source_file": "attendance_policy_2026.pdf"
             },
             {
-              "doc_id": "PDF-FIN-EXP-2026",
-              "citation": "《费用报销与票据管理制度》第五章 付款、核销与审计",
-              "title": "费用报销与票据管理制度",
-              "section": "第五章 付款、核销与审计",
-              "department": "Finance",
-              "process_type": "报销申请",
-              "risk_level": "中",
-              "updated_at": "2026-02-01",
-              "source_file": "expense_reimbursement_2026.pdf"
-            },
-            {
               "doc_id": "FIN-EXP-2026",
               "citation": "《差旅与费用报销管理规范》差旅与费用报销管理规范",
               "title": "差旅与费用报销管理规范",
@@ -3782,6 +3782,17 @@
               "risk_level": "中",
               "updated_at": "2026-02-01",
               "source_file": "expense_reimbursement_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-FIN-EXP-2026",
+              "citation": "《费用报销与票据管理制度》第二章 票据合规与影像归档 / 第九条 发票异常、抬头错误或金额不一致的，应退回补正或按",
+              "title": "费用报销与票据管理制度",
+              "section": "第二章 票据合规与影像归档 / 第九条 发票异常、抬头错误或金额不一致的，应退回补正或按",
+              "department": "Finance",
+              "process_type": "报销申请",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "expense_reimbursement_2026.pdf"
             }
           ],
           "refused": false,
@@ -3795,7 +3806,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3076923076923077,
             "faithfulness_proxy": 0.2,
-            "latency_ms": 0.15540001913905144
+            "latency_ms": 0.17680000746622682
           }
         },
         {
@@ -3816,9 +3827,9 @@
           "retrieved_doc_ids": [
             "PDF-PROC-PURCHASE-2026",
             "PDF-HR-HANDBOOK-2026",
-            "PDF-HR-HANDBOOK-2026",
-            "HR-TRAIN-2026",
-            "HR-TRANSFER-2026"
+            "AUDIT-ISSUE-2026",
+            "AUDIT-EVIDENCE-2026",
+            "FIN-BUDGET-2026"
           ],
           "sources": [
             {
@@ -3844,26 +3855,37 @@
               "source_file": "employee_handbook_2026.pdf"
             },
             {
-              "doc_id": "HR-TRAIN-2026",
-              "citation": "《员工培训与考试管理办法》办理条件",
-              "title": "员工培训与考试管理办法",
+              "doc_id": "AUDIT-ISSUE-2026",
+              "citation": "《内审问题整改与跟踪流程》办理条件",
+              "title": "内审问题整改与跟踪流程",
               "section": "办理条件",
-              "department": "HR",
-              "process_type": "培训考试",
-              "risk_level": "低",
+              "department": "Audit",
+              "process_type": "审计整改",
+              "risk_level": "高",
               "updated_at": "2026-05-30",
-              "source_file": "hr_train_2026.md"
+              "source_file": "audit_issue_2026.md"
             },
             {
-              "doc_id": "HR-TRANSFER-2026",
-              "citation": "《员工内部转岗与借调流程》办理条件",
-              "title": "员工内部转岗与借调流程",
+              "doc_id": "AUDIT-EVIDENCE-2026",
+              "citation": "《监管检查资料准备与报送规范》办理条件",
+              "title": "监管检查资料准备与报送规范",
               "section": "办理条件",
-              "department": "HR",
-              "process_type": "岗位变更",
+              "department": "Audit",
+              "process_type": "监管报送",
+              "risk_level": "高",
+              "updated_at": "2026-05-30",
+              "source_file": "audit_evidence_2026.md"
+            },
+            {
+              "doc_id": "FIN-BUDGET-2026",
+              "citation": "《部门预算申请与调整流程》办理条件",
+              "title": "部门预算申请与调整流程",
+              "section": "办理条件",
+              "department": "Finance",
+              "process_type": "预算管理",
               "risk_level": "中",
               "updated_at": "2026-05-30",
-              "source_file": "hr_transfer_2026.md"
+              "source_file": "fin_budget_2026.md"
             }
           ],
           "refused": false,
@@ -3877,7 +3899,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.16071428571428573,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.15899998834356666
+            "latency_ms": 0.2688000095076859
           }
         },
         {
@@ -3971,7 +3993,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.0641025641025641,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.5375000182539225
+            "latency_ms": 0.19230000907555223
           }
         },
         {
@@ -3990,8 +4012,8 @@
           "eval_file": "eval_cases.jsonl",
           "retrieved_doc_ids": [
             "HR-ONBOARD-2026",
-            "ADM-MEETING-2026",
             "ADM-TRAVEL-2026",
+            "ADM-MEETING-2026",
             "SEC-ACCESS-2026",
             "HR-ONBOARD-2026"
           ],
@@ -4008,17 +4030,6 @@
               "source_file": "hr_onboard_2026.md"
             },
             {
-              "doc_id": "ADM-MEETING-2026",
-              "citation": "《会议室与访客接待管理规范》谁负责最终解释",
-              "title": "会议室与访客接待管理规范",
-              "section": "谁负责最终解释",
-              "department": "Admin",
-              "process_type": "行政服务",
-              "risk_level": "低",
-              "updated_at": "2026-05-30",
-              "source_file": "adm_meeting_2026.md"
-            },
-            {
               "doc_id": "ADM-TRAVEL-2026",
               "citation": "《出差预订与行政支持流程》谁负责最终解释",
               "title": "出差预订与行政支持流程",
@@ -4028,6 +4039,17 @@
               "risk_level": "低",
               "updated_at": "2026-05-30",
               "source_file": "adm_travel_2026.md"
+            },
+            {
+              "doc_id": "ADM-MEETING-2026",
+              "citation": "《会议室与访客接待管理规范》谁负责最终解释",
+              "title": "会议室与访客接待管理规范",
+              "section": "谁负责最终解释",
+              "department": "Admin",
+              "process_type": "行政服务",
+              "risk_level": "低",
+              "updated_at": "2026-05-30",
+              "source_file": "adm_meeting_2026.md"
             },
             {
               "doc_id": "SEC-ACCESS-2026",
@@ -4063,7 +4085,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.13924050632911392,
             "faithfulness_proxy": 0.4,
-            "latency_ms": 0.3849999629892409
+            "latency_ms": 0.1735000405460596
           }
         },
         {
@@ -4134,9 +4156,9 @@
             },
             {
               "doc_id": "PDF-HR-ONOFF-2026",
-              "citation": "《员工入离职流程说明》第五章 权限关闭、资产归还与档案归档",
+              "citation": "《员工入离职流程说明》第四章 离职申请与工作交接 / 第十四条 离职申请与工作交接应结合入离职流程的业务目的",
               "title": "员工入离职流程说明",
-              "section": "第五章 权限关闭、资产归还与档案归档",
+              "section": "第四章 离职申请与工作交接 / 第十四条 离职申请与工作交接应结合入离职流程的业务目的",
               "department": "HR",
               "process_type": "入离职流程",
               "risk_level": "中",
@@ -4155,7 +4177,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1774193548387097,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.3926000208593905
+            "latency_ms": 0.17169996863231063
           }
         },
         {
@@ -4247,7 +4269,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.35,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 0.3708999720402062
+            "latency_ms": 0.19200000679120421
           }
         }
       ]
@@ -4276,15 +4298,15 @@
         "total": 324,
         "retrieval_cases": 300,
         "refusal_cases": 24,
-        "answer_accuracy_proxy": 0.43110507444765106,
+        "answer_accuracy_proxy": 0.44024535250647634,
         "hit_at_5": 0.9033333333333333,
         "mrr_at_5": 0.9033333333333333,
         "citation_accuracy": 0.8364197530864198,
         "refusal_accuracy": 0.0,
         "faithfulness_proxy": 0.8364197530864198,
-        "latency_p50_ms": 9.290699963457882,
-        "latency_p95_ms": 16.260100004728884,
-        "latency_avg_ms": 9.72453394870958,
+        "latency_p50_ms": 10.020799993071705,
+        "latency_p95_ms": 14.694999961648136,
+        "latency_avg_ms": 10.191048149099965,
         "id": "V5",
         "name": "bm25_vector_rrf_numpy",
         "status": "completed",
@@ -4295,8 +4317,8 @@
         "query_rewrite": false,
         "metadata_filter": false,
         "refusal_gate": false,
-        "index_build_ms": 317.033100000117,
-        "chunks": 896
+        "index_build_ms": 327.10439997026697,
+        "chunks": 833
       },
       "failure_cases": [
         {
@@ -4336,9 +4358,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -4390,7 +4412,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.15384615384615385,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 20.05039999494329
+            "latency_ms": 14.59219999378547
           }
         },
         {
@@ -4428,6 +4450,17 @@
             },
             {
               "doc_id": "PDF-HR-ONOFF-2026",
+              "citation": "《员工入离职流程说明》第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
+              "title": "员工入离职流程说明",
+              "section": "第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
+              "department": "HR",
+              "process_type": "入离职流程",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "onboarding_offboarding_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-HR-ONOFF-2026",
               "citation": "《员工入离职流程说明》解释权归属",
               "title": "员工入离职流程说明",
               "section": "解释权归属",
@@ -4442,17 +4475,6 @@
               "citation": "《员工入离职流程说明》第二章 账号、设备与权限开通 / 第九条 超出常规范围的入离职流程事项，应补充影响范围、临",
               "title": "员工入离职流程说明",
               "section": "第二章 账号、设备与权限开通 / 第九条 超出常规范围的入离职流程事项，应补充影响范围、临",
-              "department": "HR",
-              "process_type": "入离职流程",
-              "risk_level": "中",
-              "updated_at": "2026-02-01",
-              "source_file": "onboarding_offboarding_2026.pdf"
-            },
-            {
-              "doc_id": "PDF-HR-ONOFF-2026",
-              "citation": "《员工入离职流程说明》第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
-              "title": "员工入离职流程说明",
-              "section": "第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
               "department": "HR",
               "process_type": "入离职流程",
               "risk_level": "中",
@@ -4482,7 +4504,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1935483870967742,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 10.556699999142438
+            "latency_ms": 10.363099980168045
           }
         },
         {
@@ -4574,7 +4596,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 13.357599964365363
+            "latency_ms": 13.52539996150881
           }
         },
         {
@@ -4668,7 +4690,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.08974358974358974,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 15.65910002682358
+            "latency_ms": 15.524899994488806
           }
         },
         {
@@ -4760,7 +4782,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.16129032258064516,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 11.361300013959408
+            "latency_ms": 8.324499998707324
           }
         },
         {
@@ -4800,9 +4822,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -4854,7 +4876,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.14864864864864866,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 12.075399979948997
+            "latency_ms": 16.020300041418523
           }
         },
         {
@@ -4894,9 +4916,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -4948,7 +4970,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.15384615384615385,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 16.313400003127754
+            "latency_ms": 14.007500023581088
           }
         },
         {
@@ -5017,6 +5039,17 @@
               "risk_level": "中",
               "updated_at": "2026-02-01",
               "source_file": "expense_reimbursement_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-FIN-EXP-2026",
+              "citation": "《费用报销与票据管理制度》第五章 付款、核销与审计 / 解释权归属",
+              "title": "费用报销与票据管理制度",
+              "section": "第五章 付款、核销与审计 / 解释权归属",
+              "department": "Finance",
+              "process_type": "报销申请",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "expense_reimbursement_2026.pdf"
             }
           ],
           "refused": false,
@@ -5030,7 +5063,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.32075471698113206,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 10.598399967420846
+            "latency_ms": 13.900499965529889
           }
         },
         {
@@ -5070,9 +5103,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -5124,7 +5157,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.14864864864864866,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 17.37339998362586
+            "latency_ms": 13.1064000306651
           }
         },
         {
@@ -5164,9 +5197,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -5218,7 +5251,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.14864864864864866,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 16.733700002077967
+            "latency_ms": 13.382300036028028
           }
         }
       ]
@@ -5247,15 +5280,15 @@
         "total": 324,
         "retrieval_cases": 300,
         "refusal_cases": 24,
-        "answer_accuracy_proxy": 0.43110507444765106,
+        "answer_accuracy_proxy": 0.4401868729743126,
         "hit_at_5": 0.9033333333333333,
         "mrr_at_5": 0.9033333333333333,
         "citation_accuracy": 0.9012345679012346,
         "refusal_accuracy": 1.0,
         "faithfulness_proxy": 0.9104938271604939,
-        "latency_p50_ms": 8.876600011717528,
-        "latency_p95_ms": 14.013900014106184,
-        "latency_avg_ms": 8.891626850617072,
+        "latency_p50_ms": 11.998999980278313,
+        "latency_p95_ms": 18.718899984378368,
+        "latency_avg_ms": 11.674740741224845,
         "id": "V6",
         "name": "hybrid_rrf_with_refusal_gate",
         "status": "completed",
@@ -5266,8 +5299,8 @@
         "query_rewrite": false,
         "metadata_filter": false,
         "refusal_gate": true,
-        "index_build_ms": 315.3457000153139,
-        "chunks": 896
+        "index_build_ms": 328.42770003480837,
+        "chunks": 833
       },
       "failure_cases": [
         {
@@ -5307,9 +5340,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -5361,7 +5394,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.15384615384615385,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 12.401599960867316
+            "latency_ms": 16.512000001966953
           }
         },
         {
@@ -5399,6 +5432,17 @@
             },
             {
               "doc_id": "PDF-HR-ONOFF-2026",
+              "citation": "《员工入离职流程说明》第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
+              "title": "员工入离职流程说明",
+              "section": "第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
+              "department": "HR",
+              "process_type": "入离职流程",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "onboarding_offboarding_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-HR-ONOFF-2026",
               "citation": "《员工入离职流程说明》解释权归属",
               "title": "员工入离职流程说明",
               "section": "解释权归属",
@@ -5413,17 +5457,6 @@
               "citation": "《员工入离职流程说明》第二章 账号、设备与权限开通 / 第九条 超出常规范围的入离职流程事项，应补充影响范围、临",
               "title": "员工入离职流程说明",
               "section": "第二章 账号、设备与权限开通 / 第九条 超出常规范围的入离职流程事项，应补充影响范围、临",
-              "department": "HR",
-              "process_type": "入离职流程",
-              "risk_level": "中",
-              "updated_at": "2026-02-01",
-              "source_file": "onboarding_offboarding_2026.pdf"
-            },
-            {
-              "doc_id": "PDF-HR-ONOFF-2026",
-              "citation": "《员工入离职流程说明》第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
-              "title": "员工入离职流程说明",
-              "section": "第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
               "department": "HR",
               "process_type": "入离职流程",
               "risk_level": "中",
@@ -5453,7 +5486,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1935483870967742,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 7.024000049568713
+            "latency_ms": 11.022299993783236
           }
         },
         {
@@ -5545,7 +5578,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 8.592499943915755
+            "latency_ms": 10.430199967231601
           }
         },
         {
@@ -5639,7 +5672,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.08974358974358974,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 10.403499996755272
+            "latency_ms": 16.22220000717789
           }
         },
         {
@@ -5731,7 +5764,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.16129032258064516,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 7.878400036133826
+            "latency_ms": 10.534500004723668
           }
         },
         {
@@ -5771,9 +5804,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -5825,7 +5858,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.14864864864864866,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 15.06179996067658
+            "latency_ms": 20.05370002007112
           }
         },
         {
@@ -5865,9 +5898,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -5919,7 +5952,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.15384615384615385,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 12.0574000175111
+            "latency_ms": 14.974299992900342
           }
         },
         {
@@ -5988,6 +6021,17 @@
               "risk_level": "中",
               "updated_at": "2026-02-01",
               "source_file": "expense_reimbursement_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-FIN-EXP-2026",
+              "citation": "《费用报销与票据管理制度》第五章 付款、核销与审计 / 解释权归属",
+              "title": "费用报销与票据管理制度",
+              "section": "第五章 付款、核销与审计 / 解释权归属",
+              "department": "Finance",
+              "process_type": "报销申请",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "expense_reimbursement_2026.pdf"
             }
           ],
           "refused": false,
@@ -6001,7 +6045,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.32075471698113206,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 11.754699982702732
+            "latency_ms": 14.166900014970452
           }
         },
         {
@@ -6041,9 +6085,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -6095,7 +6139,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.14864864864864866,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 19.763699965551496
+            "latency_ms": 20.89049998903647
           }
         },
         {
@@ -6135,9 +6179,9 @@
             },
             {
               "doc_id": "PDF-HR-LEAVE-PDF-2026",
-              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "citation": "《员工休假管理办法》第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "title": "员工休假管理办法",
-              "section": "第五章 例外处理与撤销变更 / 第二十条 跨制度争议按考勤管理制度、员工手册和本办法共同",
+              "section": "第五章 例外处理与撤销变更 / 典型场景与处理口径",
               "department": "HR",
               "process_type": "休假申请",
               "risk_level": "中",
@@ -6189,7 +6233,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.14864864864864866,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 18.56599998427555
+            "latency_ms": 14.651399978902191
           }
         }
       ]
@@ -6218,15 +6262,15 @@
         "total": 324,
         "retrieval_cases": 300,
         "refusal_cases": 24,
-        "answer_accuracy_proxy": 0.43704030604475363,
+        "answer_accuracy_proxy": 0.4448182225737083,
         "hit_at_5": 0.9,
         "mrr_at_5": 0.9,
         "citation_accuracy": 0.8981481481481481,
         "refusal_accuracy": 1.0,
         "faithfulness_proxy": 0.9074074074074074,
-        "latency_p50_ms": 9.656300011556596,
-        "latency_p95_ms": 18.034800013992935,
-        "latency_avg_ms": 10.076733334794824,
+        "latency_p50_ms": 10.956700018141419,
+        "latency_p95_ms": 20.332799991592765,
+        "latency_avg_ms": 11.28195925870117,
         "id": "V7",
         "name": "query_rewrite_metadata_guarded",
         "status": "completed",
@@ -6237,8 +6281,8 @@
         "query_rewrite": true,
         "metadata_filter": true,
         "refusal_gate": true,
-        "index_build_ms": 292.6003999891691,
-        "chunks": 896
+        "index_build_ms": 305.89339998550713,
+        "chunks": 833
       },
       "failure_cases": [
         {
@@ -6276,6 +6320,17 @@
             },
             {
               "doc_id": "PDF-HR-ONOFF-2026",
+              "citation": "《员工入离职流程说明》第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
+              "title": "员工入离职流程说明",
+              "section": "第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
+              "department": "HR",
+              "process_type": "入离职流程",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "onboarding_offboarding_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-HR-ONOFF-2026",
               "citation": "《员工入离职流程说明》解释权归属",
               "title": "员工入离职流程说明",
               "section": "解释权归属",
@@ -6290,17 +6345,6 @@
               "citation": "《员工入离职流程说明》第二章 账号、设备与权限开通 / 第九条 超出常规范围的入离职流程事项，应补充影响范围、临",
               "title": "员工入离职流程说明",
               "section": "第二章 账号、设备与权限开通 / 第九条 超出常规范围的入离职流程事项，应补充影响范围、临",
-              "department": "HR",
-              "process_type": "入离职流程",
-              "risk_level": "中",
-              "updated_at": "2026-02-01",
-              "source_file": "onboarding_offboarding_2026.pdf"
-            },
-            {
-              "doc_id": "PDF-HR-ONOFF-2026",
-              "citation": "《员工入离职流程说明》第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
-              "title": "员工入离职流程说明",
-              "section": "第一章 入职准备与材料核验 / 第一条 入职准备与材料核验应结合入离职流程的业务目的、风",
               "department": "HR",
               "process_type": "入离职流程",
               "risk_level": "中",
@@ -6330,7 +6374,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1935483870967742,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 7.603699981700629
+            "latency_ms": 10.993300005793571
           }
         },
         {
@@ -6422,7 +6466,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.1,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 9.656300011556596
+            "latency_ms": 14.056799991521984
           }
         },
         {
@@ -6514,7 +6558,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.16129032258064516,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 8.148499997332692
+            "latency_ms": 9.376299974974245
           }
         },
         {
@@ -6583,6 +6627,17 @@
               "risk_level": "中",
               "updated_at": "2026-02-01",
               "source_file": "expense_reimbursement_2026.pdf"
+            },
+            {
+              "doc_id": "PDF-FIN-EXP-2026",
+              "citation": "《费用报销与票据管理制度》第五章 付款、核销与审计 / 解释权归属",
+              "title": "费用报销与票据管理制度",
+              "section": "第五章 付款、核销与审计 / 解释权归属",
+              "department": "Finance",
+              "process_type": "报销申请",
+              "risk_level": "中",
+              "updated_at": "2026-02-01",
+              "source_file": "expense_reimbursement_2026.pdf"
             }
           ],
           "refused": false,
@@ -6596,7 +6651,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.32075471698113206,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 13.442000024951994
+            "latency_ms": 12.297099980060011
           }
         },
         {
@@ -6689,7 +6744,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.3617021276595745,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 13.537799997720867
+            "latency_ms": 10.364699992351234
           }
         },
         {
@@ -6781,7 +6836,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.532258064516129,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 4.9866000190377235
+            "latency_ms": 6.162300007417798
           }
         },
         {
@@ -6875,7 +6930,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.4142857142857143,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 16.703000001143664
+            "latency_ms": 23.505299992393702
           }
         },
         {
@@ -6967,7 +7022,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.26666666666666666,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 9.375999972689897
+            "latency_ms": 11.28249999601394
           }
         },
         {
@@ -6994,9 +7049,9 @@
           "sources": [
             {
               "doc_id": "ADM-MEETING-2026",
-              "citation": "《会议室与访客接待管理规范》注意事项",
+              "citation": "《会议室与访客接待管理规范》所需材料",
               "title": "会议室与访客接待管理规范",
-              "section": "注意事项",
+              "section": "所需材料",
               "department": "Admin",
               "process_type": "行政服务",
               "risk_level": "低",
@@ -7005,9 +7060,9 @@
             },
             {
               "doc_id": "ADM-MEETING-2026",
-              "citation": "《会议室与访客接待管理规范》所需材料",
+              "citation": "《会议室与访客接待管理规范》注意事项",
               "title": "会议室与访客接待管理规范",
-              "section": "所需材料",
+              "section": "注意事项",
               "department": "Admin",
               "process_type": "行政服务",
               "risk_level": "低",
@@ -7059,7 +7114,7 @@
             "refusal_accuracy": 0.0,
             "answer_correctness_proxy": 0.66,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 10.14309999300167
+            "latency_ms": 14.648000011220574
           }
         },
         {
@@ -7076,9 +7131,71 @@
           "department": "Security",
           "should_refuse": false,
           "eval_file": "eval_cases.jsonl",
-          "retrieved_doc_ids": [],
-          "sources": [],
-          "refused": true,
+          "retrieved_doc_ids": [
+            "ADM-SEAL-2026",
+            "ADM-SEAL-2026",
+            "ADM-SEAL-2026",
+            "ADM-SEAL-2026",
+            "ADM-SEAL-2026"
+          ],
+          "sources": [
+            {
+              "doc_id": "ADM-SEAL-2026",
+              "citation": "《印章使用与文件盖章流程》办理步骤",
+              "title": "印章使用与文件盖章流程",
+              "section": "办理步骤",
+              "department": "Admin",
+              "process_type": "印章申请",
+              "risk_level": "高",
+              "updated_at": "2026-05-30",
+              "source_file": "adm_seal_2026.md"
+            },
+            {
+              "doc_id": "ADM-SEAL-2026",
+              "citation": "《印章使用与文件盖章流程》谁负责最终解释",
+              "title": "印章使用与文件盖章流程",
+              "section": "谁负责最终解释",
+              "department": "Admin",
+              "process_type": "印章申请",
+              "risk_level": "高",
+              "updated_at": "2026-05-30",
+              "source_file": "adm_seal_2026.md"
+            },
+            {
+              "doc_id": "ADM-SEAL-2026",
+              "citation": "《印章使用与文件盖章流程》印章使用与文件盖章流程",
+              "title": "印章使用与文件盖章流程",
+              "section": "印章使用与文件盖章流程",
+              "department": "Admin",
+              "process_type": "印章申请",
+              "risk_level": "高",
+              "updated_at": "2026-05-30",
+              "source_file": "adm_seal_2026.md"
+            },
+            {
+              "doc_id": "ADM-SEAL-2026",
+              "citation": "《印章使用与文件盖章流程》适用对象",
+              "title": "印章使用与文件盖章流程",
+              "section": "适用对象",
+              "department": "Admin",
+              "process_type": "印章申请",
+              "risk_level": "高",
+              "updated_at": "2026-05-30",
+              "source_file": "adm_seal_2026.md"
+            },
+            {
+              "doc_id": "ADM-SEAL-2026",
+              "citation": "《印章使用与文件盖章流程》办理条件",
+              "title": "印章使用与文件盖章流程",
+              "section": "办理条件",
+              "department": "Admin",
+              "process_type": "印章申请",
+              "risk_level": "高",
+              "updated_at": "2026-05-30",
+              "source_file": "adm_seal_2026.md"
+            }
+          ],
+          "refused": false,
           "metrics": {
             "hit_at_5": 0.0,
             "recall_at_5": 0.0,
@@ -7087,9 +7204,9 @@
             "ndcg_at_5": 0.0,
             "citation_accuracy": 0.0,
             "refusal_accuracy": 0.0,
-            "answer_correctness_proxy": 0.13636363636363635,
+            "answer_correctness_proxy": 0.18181818181818182,
             "faithfulness_proxy": 0.0,
-            "latency_ms": 7.935900008305907
+            "latency_ms": 12.558799993712455
           }
         }
       ]

@@ -8,9 +8,11 @@ from .types import Document
 
 HEADER_PATTERN = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
 FORMAL_SECTION_PATTERN = re.compile(
-    r"^\s*(第[一二三四五六七八九十百0-9]+章\s+.+?|第[一二三四五六七八九十百0-9]+条\s*.*|附件[一二三四五六七八九十百0-9]+.*|附表[一二三四五六七八九十百0-9]+.*|修订记录|审批流程|解释权归属)\s*$",
+    r"^\s*(第[一二三四五六七八九十百0-9]+章\s+.+?|第[一二三四五六七八九十百0-9]+条\s*.*|附件[一二三四五六七八九十百0-9]+.*|附表[一二三四五六七八九十百0-9]+.*|修订记录|审批流程|制度目录|典型场景与处理口径|监督检查矩阵|解释权归属)\s*$",
     re.MULTILINE,
 )
+CHAPTER_NO_PATTERN = re.compile(r"^第([一二三四五六七八九十百0-9]+)章")
+ARTICLE_NO_PATTERN = re.compile(r"^第([一二三四五六七八九十百0-9]+)条")
 
 
 class PolicyDocumentLoader:
@@ -130,16 +132,26 @@ class PolicyDocumentLoader:
             if not content:
                 continue
 
-            if title.startswith("第") and "章" in title:
+            section_type = PolicyDocumentLoader._section_type(title)
+            if section_type == "chapter":
                 current_chapter = title
                 current_article = ""
-                metadata = {"section_1": title}
-            elif title.startswith("第") and "条" in title:
+                metadata = {"section_1": title, "section_type": section_type}
+                chapter_no = PolicyDocumentLoader._match_no(CHAPTER_NO_PATTERN, title)
+                if chapter_no:
+                    metadata["chapter_no"] = chapter_no
+            elif section_type == "article":
                 current_article = title
-                metadata = {"section_1": current_chapter or "正文条款", "section_2": title}
+                metadata = {"section_1": current_chapter or "正文条款", "section_2": title, "section_type": section_type}
+                chapter_no = PolicyDocumentLoader._match_no(CHAPTER_NO_PATTERN, current_chapter)
+                article_no = PolicyDocumentLoader._match_no(ARTICLE_NO_PATTERN, title)
+                if chapter_no:
+                    metadata["chapter_no"] = chapter_no
+                if article_no:
+                    metadata["article_no"] = article_no
             else:
                 current_article = title
-                metadata = {"section_1": title}
+                metadata = {"section_1": title, "section_type": section_type}
 
             if current_chapter and current_article and current_article != current_chapter:
                 metadata["section_path"] = f"{current_chapter} / {current_article}"
@@ -156,6 +168,35 @@ class PolicyDocumentLoader:
         if "条" in title and len(title) > 28:
             return title[:28].rstrip("，。；、：")
         return title
+
+    @staticmethod
+    def _section_type(title: str) -> str:
+        if title == "修订记录":
+            return "revision_record"
+        if title == "审批流程":
+            return "approval_flow"
+        if title == "制度目录":
+            return "directory"
+        if title == "典型场景与处理口径":
+            return "scenario_notes"
+        if title == "监督检查矩阵":
+            return "control_matrix"
+        if title == "解释权归属":
+            return "explanation"
+        if title.startswith("附件"):
+            return "appendix"
+        if title.startswith("附表"):
+            return "appendix_table"
+        if CHAPTER_NO_PATTERN.match(title):
+            return "chapter"
+        if ARTICLE_NO_PATTERN.match(title):
+            return "article"
+        return "section"
+
+    @staticmethod
+    def _match_no(pattern: re.Pattern, title: str) -> str:
+        match = pattern.match(title or "")
+        return match.group(1) if match else ""
 
     @staticmethod
     def _split_fixed_window(text: str, chunk_size: int = 900, overlap: int = 120) -> List[Document]:

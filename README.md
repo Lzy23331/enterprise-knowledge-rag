@@ -70,7 +70,7 @@ eval_report.md
 | 指标 | Hybrid RAG |
 | --- | ---: |
 | Policy Documents | 45 |
-| Chunks | 896 |
+| Chunks | 833 |
 | Total Eval Cases | 324 |
 | Hit@5 / Recall@5 | 0.903 / 0.903 |
 | Context Precision@5 | 0.903 |
@@ -78,8 +78,8 @@ eval_report.md
 | Citation Accuracy | 0.901 |
 | Refusal Accuracy | 1.000 |
 | Faithfulness Proxy | 0.910 |
-| Answer Accuracy Proxy | 0.431 |
-| Latency p50 / p95 | 10.2 ms / 15.7 ms |
+| Answer Accuracy Proxy | 0.441 |
+| Latency p50 / p95 | 10.1 ms / 16.5 ms |
 
 运行 `run_experiments.py --quick` 会生成真实迭代实验报告：
 
@@ -100,9 +100,9 @@ quick 迭代结果摘要：
 | V2 | 固定窗口 chunk + BM25 | 0.542 | 0.993 | 0.460 | 0.042 |
 | V3 | Markdown/PDF 结构分块 + BM25 | 0.536 | 0.963 | 0.764 | 0.042 |
 | V4 | local-hashing + NumPy，纯向量检索 | 0.253 | 0.753 | 0.290 | 0.000 |
-| V5 | BM25 + vector + RRF | 0.431 | 0.903 | 0.836 | 0.000 |
-| V6 | BM25 + vector + RRF + 拒答 | 0.431 | 0.903 | 0.901 | 1.000 |
-| V7 | Query rewrite + metadata hint + 拒答 | 0.437 | 0.900 | 0.898 | 1.000 |
+| V5 | BM25 + vector + RRF | 0.440 | 0.903 | 0.836 | 0.000 |
+| V6 | BM25 + vector + RRF + 拒答 | 0.440 | 0.903 | 0.901 | 1.000 |
+| V7 | Query rewrite + metadata hint + 拒答 | 0.445 | 0.900 | 0.898 | 1.000 |
 
 说明：`local-hashing` 只作为快速可复现 baseline，不作为最终 embedding 选型依据；真实 embedding 选型需要 `run_experiments.py --full` 完整跑通后再写入简历口径。
 
@@ -218,6 +218,6 @@ $env:SMARTOFFICE_DISABLE_LLM="1"
 
 - 面向企业 HR、财务、IT、安全等制度咨询场景，针对“制度分散、员工重复咨询、答案难追溯”的痛点，构建可本地部署的 RAG 问答系统，支持政策查询、流程解释、材料清单、风险提醒和引用溯源。
 - 设计 Markdown + PDF 多格式制度知识库与结构化 metadata，完成文档解析、正式章条分块、向量索引持久化和部门/流程/风险等级过滤，沉淀 45 篇企业模拟制度与 324 条评估样本。
-- 从 LLM 直答 baseline 出发，依次验证整文档检索、固定窗口分块、结构化分块、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归中 Answer Accuracy Proxy 从 0.000 提升至 0.431，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。
+- 从 LLM 直答 baseline 出发，依次验证整文档检索、固定窗口分块、结构化分块、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归中 Answer Accuracy Proxy 从 0.000 提升至 0.440，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。
 - 实现 BM25 与向量召回的混合检索链路，使用 RRF 融合排序，并结合主文档上下文补全和低置信拒答策略；完整 embedding 模型选型以 `run_experiments.py --full` 成功运行结果为准。
 - 基于 Streamlit 部署可交互 Demo，展示回答、引用来源、检索片段、检索分数和评估指标；无 API key 时支持本地抽取式兜底，兼顾演示稳定性与调用成本。

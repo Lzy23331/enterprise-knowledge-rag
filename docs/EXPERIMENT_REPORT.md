@@ -4,7 +4,7 @@
 
 - Selected quick-regression version: V6 `hybrid_rrf_with_refusal_gate`
 - Quality leader in completed candidate pool: V6 `hybrid_rrf_with_refusal_gate`
-- Answer Accuracy Proxy: 0.000 -> 0.431
+- Answer Accuracy Proxy: 0.000 -> 0.440
 - Hit@5: 0.000 -> 0.903
 - Citation Accuracy: 0.074 -> 0.901
 - Refusal Accuracy: 0.000 -> 1.000
@@ -15,13 +15,13 @@
 | Version | Strategy | Chunk | Embedding | Retriever | Answer Acc. | Hit@5 | Citation | Refusal | p95 ms | Notes |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | V0 | llm_direct_no_retrieval | none | none | llm_direct | 0.000 | 0.000 | 0.074 | 0.000 | 0.0 | 无知识库直答基线，用于暴露不可追溯和知识库外问题无法拒答的问题。 |
-| V1 | keyword_whole_document | whole_document | none | keyword_only | 0.382 | 0.997 | 0.188 | 0.042 | 46.3 | 整文档粒度的关键词检索，验证最小知识库检索是否能命中文档。 |
-| V2 | bm25_fixed_window | fixed_window | none | bm25_only | 0.504 | 0.997 | 0.460 | 0.042 | 3.1 | 固定长度滑窗分块 + BM25，测试简单 chunk 策略对召回和引用的影响。 |
-| V3 | bm25_header_chunk | markdown_headers | none | bm25_only | 0.399 | 0.973 | 0.797 | 0.042 | 11.4 | Markdown 标题层级分块 + BM25，保留制度章节结构，提高引用可解释性。 |
-| V4 | vector_local_hashing_numpy | markdown_headers | local-hashing | vector_only | 0.216 | 0.787 | 0.349 | 0.000 | 0.4 | 本地 hashing embedding + NumPy 向量检索，用作可复现的轻量语义召回基线。 |
-| V5 | bm25_vector_rrf_numpy | markdown_headers | local-hashing | hybrid_rrf | 0.431 | 0.903 | 0.836 | 0.000 | 16.3 | BM25 + local hashing 向量召回 + RRF 融合，验证混合检索收益。 |
-| V6 | hybrid_rrf_with_refusal_gate | markdown_headers | local-hashing | hybrid_rrf | 0.431 | 0.903 | 0.901 | 1.000 | 14.0 | 混合检索 + 低置信拒答，用于降低知识库外问题误答。 |
-| V7 | query_rewrite_metadata_guarded | markdown_headers | local-hashing | hybrid_rrf | 0.437 | 0.900 | 0.898 | 1.000 | 18.0 | 候选增强链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答，用于验证规则增强是否继续提升。 |
+| V1 | keyword_whole_document | whole_document | none | keyword_only | 0.382 | 0.997 | 0.188 | 0.042 | 46.4 | 整文档粒度的关键词检索，验证最小知识库检索是否能命中文档。 |
+| V2 | bm25_fixed_window | fixed_window | none | bm25_only | 0.508 | 1.000 | 0.458 | 0.042 | 2.1 | 固定长度滑窗分块 + BM25，测试简单 chunk 策略对召回和引用的影响。 |
+| V3 | bm25_header_chunk | markdown_headers | none | bm25_only | 0.416 | 0.973 | 0.794 | 0.042 | 13.0 | Markdown 标题层级分块 + BM25，保留制度章节结构，提高引用可解释性。 |
+| V4 | vector_local_hashing_numpy | markdown_headers | local-hashing | vector_only | 0.221 | 0.783 | 0.332 | 0.000 | 0.3 | 本地 hashing embedding + NumPy 向量检索，用作可复现的轻量语义召回基线。 |
+| V5 | bm25_vector_rrf_numpy | markdown_headers | local-hashing | hybrid_rrf | 0.440 | 0.903 | 0.836 | 0.000 | 14.7 | BM25 + local hashing 向量召回 + RRF 融合，验证混合检索收益。 |
+| V6 | hybrid_rrf_with_refusal_gate | markdown_headers | local-hashing | hybrid_rrf | 0.440 | 0.903 | 0.901 | 1.000 | 18.7 | 混合检索 + 低置信拒答，用于降低知识库外问题误答。 |
+| V7 | query_rewrite_metadata_guarded | markdown_headers | local-hashing | hybrid_rrf | 0.445 | 0.900 | 0.898 | 1.000 | 20.3 | 候选增强链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答，用于验证规则增强是否继续提升。 |
 
 ## Failure-driven Iteration Notes
 
@@ -110,4 +110,4 @@
 
 ## Resume-ready Story
 
-基于 324 条制度问答评估集，从 `llm_direct_no_retrieval` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归使用轻量向量 baseline 验证链路收益，使 Answer Accuracy Proxy 从 0.000 提升至 0.431，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。真实 embedding 选型需以 `run_experiments.py --full` 成功完成 bge-small、bge-base 和 multilingual-e5 对比后的结果为准。
+基于 324 条制度问答评估集，从 `llm_direct_no_retrieval` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；当前 quick 回归使用轻量向量 baseline 验证链路收益，使 Answer Accuracy Proxy 从 0.000 提升至 0.440，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。真实 embedding 选型需以 `run_experiments.py --full` 成功完成 bge-small、bge-base 和 multilingual-e5 对比后的结果为准。
