@@ -27,6 +27,9 @@ class PolicyDocumentLoader:
         semantic_embedding_model: str = "BAAI/bge-small-zh-v1.5",
         semantic_similarity_threshold: float = 0.72,
         semantic_max_chunk_size: int = 1200,
+        sentence_window_size: int = 1,
+        sentence_max_chars: int = 180,
+        sentence_min_chars: int = 12,
     ):
         self.data_path = Path(data_path)
         self.pdf_path = Path(pdf_path) if pdf_path else None
@@ -37,6 +40,9 @@ class PolicyDocumentLoader:
         self.semantic_embedding_model = semantic_embedding_model
         self.semantic_similarity_threshold = semantic_similarity_threshold
         self.semantic_max_chunk_size = semantic_max_chunk_size
+        self.sentence_window_size = sentence_window_size
+        self.sentence_max_chars = sentence_max_chars
+        self.sentence_min_chars = sentence_min_chars
 
     def load_parent_documents(self) -> List[Document]:
         if not self.data_path.exists():
@@ -72,10 +78,13 @@ class PolicyDocumentLoader:
                     split_docs = self._split_markdown_by_headers(parent.page_content)
             elif self.chunk_strategy == "semantic":
                 split_docs = self._split_semantic(parent)
+            elif self.chunk_strategy == "sentence_window":
+                split_docs = self._split_sentence_window(parent)
             else:
                 raise ValueError(f"Unsupported chunk strategy: {self.chunk_strategy}")
 
             for index, chunk in enumerate(split_docs):
+                original_chunk_type = chunk.metadata.get("chunk_type", "child")
                 section = (
                     chunk.metadata.get("section_path")
                     or chunk.metadata.get("section_3")
@@ -88,15 +97,63 @@ class PolicyDocumentLoader:
                 chunk.metadata.update(
                     {
                         "chunk_id": child_id,
-                        "chunk_type": "child",
+                        "chunk_type": original_chunk_type,
                         "chunk_index": index,
                         "section": section,
                         "citation": f"《{parent.metadata.get('title', '未知文档')}》{section}",
                         "chunk_size": len(chunk.page_content),
+                        "sentence_window_size": self.sentence_window_size if original_chunk_type == "sentence_child" else 0,
                     }
                 )
                 chunks.append(chunk)
         return chunks
+
+    def _split_sentence_window(self, parent: Document) -> List[Document]:
+        if parent.metadata.get("source_type") == "pdf":
+            base_units = self._split_formal_policy(parent.page_content)
+        else:
+            base_units = self._split_markdown_by_headers(parent.page_content)
+        documents: List[Document] = []
+        for unit in base_units:
+            section = self._unit_section(unit)
+            sentences = self._split_sentences(unit.page_content)
+            for sentence_index, sentence in enumerate(sentences):
+                if len(sentence) < self.sentence_min_chars:
+                    continue
+                documents.append(
+                    Document(
+                        page_content=sentence,
+                        metadata={
+                            **unit.metadata,
+                            "parent_section": section,
+                            "section_path": section,
+                            "sentence_index": sentence_index,
+                            "sentence_total": len(sentences),
+                            "chunk_type": "sentence_child",
+                            "section_type": unit.metadata.get("section_type", "sentence_window"),
+                        },
+                    )
+                )
+        return documents
+
+    def _split_sentences(self, text: str) -> List[str]:
+        cleaned = re.sub(r"\s+", " ", text).strip()
+        if not cleaned:
+            return []
+        raw_sentences = re.split(r"(?<=[。！？!?；;])\s*", cleaned)
+        sentences: List[str] = []
+        for raw in raw_sentences:
+            raw = raw.strip()
+            if not raw:
+                continue
+            if len(raw) <= self.sentence_max_chars:
+                sentences.append(raw)
+                continue
+            for start in range(0, len(raw), self.sentence_max_chars):
+                part = raw[start : start + self.sentence_max_chars].strip()
+                if part:
+                    sentences.append(part)
+        return sentences
 
     def _split_semantic(self, parent: Document) -> List[Document]:
         if parent.metadata.get("source_type") == "pdf":

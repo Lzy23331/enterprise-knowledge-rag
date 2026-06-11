@@ -112,10 +112,15 @@ full 迭代结果摘要：
 | V9-qwen3-0.6b | Qwen3-Embedding-0.6B + BM25 + RRF + 拒答 | 0.472 | 0.910 | 0.907 | 1.000 |
 | V9-bge-m3 | bge-m3 + BM25 + RRF + 拒答 | 0.484 | 0.900 | 0.898 | 1.000 |
 | V9-gte-qwen2-1.5b | gte-Qwen2-1.5B + BM25 + RRF + 拒答 | skipped | - | - | - |
+| V10-sentence-window-hybrid | 句子窗口索引 + BM25 + RRF + 拒答 | 0.398 | 0.907 | 0.904 | 1.000 |
+| V11-structured-hybrid | 结构化 metadata boost + BM25 + RRF + 拒答 | 0.487 | 0.880 | 0.880 | 1.000 |
+| V12-sentence-structured-hybrid | 句子窗口 + 结构化 boost + RRF + 拒答 | 0.372 | 0.897 | 0.895 | 1.000 |
 
 说明：`local-hashing` 只作为快速可复现 baseline；真实 full 实验显示 bge-small/base/e5 在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，bge-small 的 Answer Accuracy Proxy 最高且 p95 延迟明显低于 bge-base。MTEB 候选复验中，Qwen3-0.6B 的 Citation Accuracy 略高但延迟明显更高，bge-m3 的 Answer Accuracy Proxy 略高但 Citation Accuracy 略低且延迟更高，gte-Qwen2-1.5B 在当前依赖下 encode 失败。因此最终仍选择 `BAAI/bge-small-zh-v1.5 + BM25 + RRF + 低置信拒答`。
 
 分块实验结论：递归字符分块在 Hit@5 和 Answer Accuracy Proxy 上表现更强，但 Citation Accuracy 明显低于制度结构分块；语义分块与结构分块的 Citation Accuracy 持平，Answer Accuracy Proxy 略高，但需要额外 embedding 分块成本。因此本项目部署主策略仍选择 Markdown header / PDF 章条结构感知分块，递归分块作为通用 fallback，语义分块作为后续增强候选。
+
+索引优化结论：sentence-window hybrid 的 Citation Accuracy 略高，但 Answer Accuracy Proxy 明显下降；structured metadata boost 的 Answer Accuracy Proxy 略高，但 Hit@5 和 Citation Accuracy 下降；两者叠加也没有超过 V6。因此当前主链路仍保留 `结构感知 chunk + FAISS + BM25 + RRF + 主文档上下文补全 + 低置信拒答`。
 
 ## 运行方式
 

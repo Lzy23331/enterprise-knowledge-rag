@@ -9,10 +9,19 @@ from .types import Document
 
 
 class HybridRetriever:
-    def __init__(self, vectorstore, chunks: List[Document], default_k: int = 4):
+    def __init__(
+        self,
+        vectorstore,
+        chunks: List[Document],
+        default_k: int = 4,
+        sentence_window_size: int = 0,
+        structured_boost: bool = False,
+    ):
         self.vectorstore = vectorstore
         self.chunks = chunks
         self.default_k = default_k
+        self.sentence_window_size = sentence_window_size
+        self.structured_boost = structured_boost
         candidate_k = max(default_k * 4, 20)
         self.vector_retriever = vectorstore.as_retriever(search_kwargs={"k": candidate_k})
         self.bm25_retriever = BM25TextRetriever(chunks, k=candidate_k)
@@ -34,6 +43,10 @@ class HybridRetriever:
         if filters:
             reranked = [doc for doc in reranked if self._matches_filters(doc, filters)]
         ordered = self._doc_aware_order(query, reranked)
+        if self.structured_boost:
+            ordered = self._structured_order(query, ordered)
+        if self.sentence_window_size > 0:
+            ordered = self._expand_sentence_window(ordered)
         return self._expand_primary_doc_context(query, ordered)[:k]
 
     @staticmethod
@@ -98,6 +111,106 @@ class HybridRetriever:
             ),
             reverse=True,
         )
+
+    def _structured_order(self, query: str, docs: List[Document]) -> List[Document]:
+        hints = self._structured_hints(query)
+        for doc in docs:
+            score = float(doc.metadata.get("rrf_score", 0.0))
+            metadata_text = " ".join(str(value) for value in doc.metadata.values())
+            title = str(doc.metadata.get("title", ""))
+            process_type = str(doc.metadata.get("process_type", ""))
+            section_type = str(doc.metadata.get("section_type", ""))
+            if title and title in query:
+                score += 0.08
+            if process_type and process_type in query:
+                score += 0.06
+            if hints.get("department") and str(doc.metadata.get("department")) == hints["department"]:
+                score += 0.08
+            if hints.get("risk_level") and str(doc.metadata.get("risk_level")) == hints["risk_level"]:
+                score += 0.05
+            for term in hints.get("terms", []):
+                if term in metadata_text or term in doc.page_content:
+                    score += 0.025
+            if hints.get("section_type") and section_type == hints["section_type"]:
+                score += 0.04
+            doc.metadata["structured_score"] = round(score, 6)
+        return sorted(
+            docs,
+            key=lambda doc: (
+                float(doc.metadata.get("structured_score", 0.0)),
+                float(doc.metadata.get("rrf_score", 0.0)),
+            ),
+            reverse=True,
+        )
+
+    @staticmethod
+    def _structured_hints(query: str) -> Dict[str, object]:
+        hints: Dict[str, object] = {"terms": []}
+        department_terms = {
+            "HR": ("请假", "休假", "考勤", "绩效", "入职", "离职", "员工"),
+            "Finance": ("报销", "发票", "付款", "预算", "备用金", "金额"),
+            "IT": ("账号", "VPN", "系统", "权限", "电脑", "变更"),
+            "Security": ("数据", "客户信息", "导出", "安全", "账号"),
+            "Legal": ("合同", "法务", "归档", "保密"),
+            "Procurement": ("采购", "供应商", "招标", "验收"),
+            "Admin": ("印章", "会议室", "出差", "访客"),
+        }
+        for department, terms in department_terms.items():
+            if any(term in query for term in terms):
+                hints["department"] = department
+                hints["terms"].extend(terms)
+                break
+        if any(term in query for term in ("高风险", "生产", "客户数据", "付款", "合同", "印章", "权限")):
+            hints["risk_level"] = "高"
+        if any(term in query for term in ("材料", "附件", "提交", "票据", "证明")):
+            hints["section_type"] = "appendix"
+            hints["terms"].extend(["材料", "附件", "清单", "证明"])
+        if any(term in query for term in ("审批", "流程", "步骤", "办理")):
+            hints["terms"].extend(["审批", "流程", "步骤", "办理"])
+        if any(term in query for term in ("时限", "多久", "提前", "SLA")):
+            hints["terms"].extend(["时限", "工作日", "提前", "SLA"])
+        if any(term in query for term in ("金额", "额度", "阈值", "超过")):
+            hints["terms"].extend(["金额", "额度", "阈值", "超过"])
+        return hints
+
+    def _expand_sentence_window(self, docs: List[Document]) -> List[Document]:
+        if not docs:
+            return []
+        by_position = {}
+        for doc in self.chunks:
+            if doc.metadata.get("chunk_type") != "sentence_child":
+                continue
+            key = (
+                doc.metadata.get("doc_id"),
+                doc.metadata.get("section_path"),
+                int(doc.metadata.get("sentence_index", -1)),
+            )
+            by_position[key] = doc
+
+        expanded: List[Document] = []
+        seen = set()
+        for doc in docs:
+            if doc.metadata.get("chunk_type") != "sentence_child":
+                key = self._doc_key(doc)
+                if key not in seen:
+                    expanded.append(doc)
+                    seen.add(key)
+                continue
+            doc_id = doc.metadata.get("doc_id")
+            section_path = doc.metadata.get("section_path")
+            sentence_index = int(doc.metadata.get("sentence_index", 0))
+            for index in range(sentence_index - self.sentence_window_size, sentence_index + self.sentence_window_size + 1):
+                neighbor = by_position.get((doc_id, section_path, index))
+                if not neighbor:
+                    continue
+                key = self._doc_key(neighbor)
+                if key in seen:
+                    continue
+                neighbor.metadata["sentence_window_hit"] = doc.metadata.get("chunk_id")
+                neighbor.metadata["sentence_window_center"] = sentence_index
+                expanded.append(neighbor)
+                seen.add(key)
+        return expanded
 
     def _expand_primary_doc_context(self, query: str, docs: List[Document]) -> List[Document]:
         if not docs:

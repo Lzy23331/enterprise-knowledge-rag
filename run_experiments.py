@@ -52,6 +52,10 @@ class ExperimentConfig:
     semantic_embedding_model: str = "BAAI/bge-small-zh-v1.5"
     semantic_similarity_threshold: float = 0.72
     semantic_max_chunk_size: int = 1200
+    sentence_window_size: int = 0
+    sentence_max_chars: int = 180
+    sentence_min_chars: int = 12
+    structured_boost: bool = False
     embedding_trust_remote_code: bool = False
     query_instruction: str = ""
     document_instruction: str = ""
@@ -266,6 +270,9 @@ class ExperimentRunner:
             semantic_embedding_model=self.config.semantic_embedding_model,
             semantic_similarity_threshold=self.config.semantic_similarity_threshold,
             semantic_max_chunk_size=self.config.semantic_max_chunk_size,
+            sentence_window_size=self.config.sentence_window_size,
+            sentence_max_chars=self.config.sentence_max_chars,
+            sentence_min_chars=self.config.sentence_min_chars,
         )
         self.parents = loader.load_parent_documents()
         self.chunks = loader.split_documents(self.parents)
@@ -275,7 +282,7 @@ class ExperimentRunner:
             self.retriever = KeywordRetriever(self.chunks, k=max(TOP_K * 4, 20))
         elif self.config.retriever == "bm25_only":
             self.retriever = BM25TextRetriever(self.chunks, k=max(TOP_K * 4, 20))
-        elif self.config.retriever in {"vector_only", "hybrid_rrf"}:
+        elif self.config.retriever in {"vector_only", "hybrid_rrf", "structured_hybrid_rrf"}:
             index_path = OUTPUT_DIR / "index_cache" / self.config.name
             try:
                 vector_index = VectorIndex(
@@ -309,7 +316,13 @@ class ExperimentRunner:
             self.retriever = (
                 vectorstore.as_retriever(search_kwargs={"k": max(TOP_K * 4, 20)})
                 if self.config.retriever == "vector_only"
-                else HybridRetriever(vectorstore, self.chunks, default_k=TOP_K)
+                else HybridRetriever(
+                    vectorstore,
+                    self.chunks,
+                    default_k=TOP_K,
+                    sentence_window_size=self.config.sentence_window_size if self.config.chunk_strategy == "sentence_window" else 0,
+                    structured_boost=self.config.structured_boost or self.config.retriever == "structured_hybrid_rrf",
+                )
             )
         else:
             raise ValueError(f"Unsupported retriever: {self.config.retriever}")
@@ -415,6 +428,8 @@ def evaluate_experiment(config: ExperimentConfig, cases: List[Dict[str, Any]]) -
             "query_rewrite": config.query_rewrite,
             "metadata_filter": config.metadata_filter,
             "refusal_gate": config.refusal_gate,
+            "sentence_window_size": config.sentence_window_size,
+            "structured_boost": config.structured_boost or config.retriever == "structured_hybrid_rrf",
             "index_build_ms": runner.index_build_ms,
             "model_load_ms": runner.model_load_ms,
             "embedding_dimension": runner.embedding_dimension,
@@ -476,6 +491,8 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
         "query_rewrite",
         "metadata_filter",
         "refusal_gate",
+        "sentence_window_size",
+        "structured_boost",
     ]
     with CSV_REPORT_PATH.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -496,6 +513,8 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
                         "query_rewrite": config["query_rewrite"],
                         "metadata_filter": config["metadata_filter"],
                         "refusal_gate": config["refusal_gate"],
+                        "sentence_window_size": config.get("sentence_window_size", 0),
+                        "structured_boost": config.get("structured_boost", False) or config.get("retriever") == "structured_hybrid_rrf",
                     }
                 )
             else:
@@ -668,6 +687,46 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
                 *chunking_rows,
                 "",
                 "Conclusion: recursive chunking is valuable as a generic fallback and improves broad recall, but enterprise policy QA prioritizes traceable citations. The deployed strategy remains header/article-aware chunking with bge-small hybrid retrieval; semantic chunking is a credible enhancement candidate when answer completeness matters more than strict article-level citation.",
+            ]
+        )
+
+    index_rows = []
+    index_targets = [
+        ("V6-bge-small", "Current structured chunk index"),
+        ("V10-sentence-window-vector", "Sentence-window vector"),
+        ("V10-sentence-window-hybrid", "Sentence-window hybrid"),
+        ("V11-structured-hybrid", "Structured metadata boost"),
+        ("V12-sentence-structured-hybrid", "Sentence-window + structured boost"),
+    ]
+    by_id = {result["config"]["id"]: result for result in results}
+    for config_id, label in index_targets:
+        result = by_id.get(config_id)
+        if not result:
+            continue
+        config = result["config"]
+        if result["status"] == "skipped":
+            index_rows.append(
+                f"| {config_id} | {label} | skipped | {config['chunk_strategy']} | {config['retriever']} | - | - | - | - | - | {result.get('skip_reason', '')} |"
+            )
+            continue
+        summary = result["summary"]
+        index_rows.append(
+            f"| {config_id} | {label} | completed | {summary['chunk_strategy']} | {summary['retriever']} | "
+            f"{summary.get('chunks', 0)} | {summary['answer_accuracy_proxy']:.3f} | {summary['hit_at_5']:.3f} | "
+            f"{summary['citation_accuracy']:.3f} | {summary['latency_p95_ms']:.1f} | "
+            f"sentence_window={summary.get('sentence_window_size', 0)}, structured_boost={summary.get('structured_boost', False)} |"
+        )
+    if index_rows:
+        lines.extend(
+            [
+                "",
+                "## Index Optimization Findings",
+                "",
+                "| Version | Index Strategy | Status | Chunk | Retriever | Chunks | Answer Acc. | Hit@5 | Citation | p95 ms | Notes |",
+                "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+                *index_rows,
+                "",
+                "Decision rule: sentence-window retrieval is useful only if extra local context improves answers without damaging citation quality. Structured retrieval is useful only if metadata boosts improve ranking without over-filtering or hurting refusal behavior.",
             ]
         )
 

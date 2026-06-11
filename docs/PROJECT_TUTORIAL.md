@@ -1016,6 +1016,10 @@ experiments/
 | V6-recursive | hybrid_bge_small_recursive_guarded | 0.565 | 0.963 | 0.531 | 1.000 |
 | V6-semantic | hybrid_bge_small_semantic_guarded | 0.479 | 0.903 | 0.901 | 1.000 |
 | V7 | query_rewrite_metadata_guarded | 0.445 | 0.900 | 0.898 | 1.000 |
+| V10-sentence-window-vector | vector_bge_small_sentence_window_faiss | 0.294 | 0.833 | 0.393 | 0.000 |
+| V10-sentence-window-hybrid | hybrid_bge_small_sentence_window_guarded | 0.398 | 0.907 | 0.904 | 1.000 |
+| V11-structured-hybrid | structured_hybrid_bge_small_guarded | 0.487 | 0.880 | 0.880 | 1.000 |
+| V12-sentence-structured-hybrid | sentence_structured_hybrid_bge_small_guarded | 0.372 | 0.897 | 0.895 | 1.000 |
 
 #### 6.3.1 最终主链路到底选择了什么
 
@@ -1267,6 +1271,101 @@ V6-bge-small =
 ```
 
 这个选择体现的是工程和业务权衡：不用单一指标决定方案，而是同时考虑问答准确性、引用可信度、拒答能力、延迟和构建成本。对于企业制度问答，“能指出依据”比“回答看起来更完整”更重要。
+
+#### 6.3.6 索引优化：句子窗口检索与结构化检索
+
+在向量库和 embedding 之外，还需要理解“索引方法”。本项目当前主链路不是单纯向量检索，而是：
+
+```text
+结构化 chunk 索引
++ FAISS 向量索引
++ BM25 倒排检索
++ RRF 融合排序
++ 主文档上下文补全
++ 低置信拒答
+```
+
+这里的“索引优化”关注的是：文档被组织成什么粒度、检索命中什么粒度、生成时补什么上下文、metadata 是否参与排序。
+
+当前已有的索引能力：
+
+| 能力 | 项目实现 | 作用 |
+| --- | --- | --- |
+| 向量索引 | `FAISS IndexFlatIP` | 找语义相近 chunk |
+| 关键词索引 | `BM25Okapi` | 找制度名、表单号、金额、部门等精确词 |
+| 结构化 chunk | Markdown 标题 / PDF 章条分块 | 保留制度章节和条款 citation |
+| RRF 融合 | vector topN + BM25 topN | 降低单一路径误召回 |
+| 主文档补全 | 命中主制度后补同制度相关 chunk | 提高回答完整性 |
+
+本轮新增了两类索引增强实验。
+
+第一类是 `sentence-window retrieval`：
+
+```text
+先按标题/章条得到结构单元
+再切成句子级 child chunk
+检索时命中句子
+生成前回填同一 section 的前后句窗口
+```
+
+它解决的问题是：如果 chunk 太大，向量检索可能不够精确；如果句子太小，答案上下文又可能不完整。所以 sentence-window 的思想是“检索用小粒度，生成用窗口上下文”。
+
+第二类是 `structured retrieval`：
+
+```text
+先做 BM25 + vector + RRF
+再根据 metadata 做 soft boost
+不做强过滤
+```
+
+它用到的结构化线索包括：
+
+- `department`
+- `process_type`
+- `risk_level`
+- `section_type`
+- `title`
+- 问题里的“材料、时限、金额、审批、风险”等意图词
+
+为什么用 soft boost，而不是强过滤：
+
+> 企业员工提问不一定会明确说出部门或制度名称，如果强过滤判断错了，可能直接把正确文档过滤掉。soft boost 更稳妥，它只是给更可能相关的 chunk 加分，而不会让召回为空。
+
+新增实验版本：
+
+| Version | 策略 | Answer Acc. | Hit@5 | Citation | Refusal | p95 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| V6-bge-small | 当前结构化 chunk + hybrid RRF | 0.476 | 0.903 | 0.901 | 1.000 | 57.5 ms |
+| V10-sentence-window-vector | 句子窗口 + 纯向量 | 0.294 | 0.833 | 0.393 | 0.000 | 17.7 ms |
+| V10-sentence-window-hybrid | 句子窗口 + hybrid RRF | 0.398 | 0.907 | 0.904 | 1.000 | 66.2 ms |
+| V11-structured-hybrid | 结构化 soft boost + hybrid RRF | 0.487 | 0.880 | 0.880 | 1.000 | 46.8 ms |
+| V12-sentence-structured-hybrid | 句子窗口 + 结构化 soft boost | 0.372 | 0.897 | 0.895 | 1.000 | 68.9 ms |
+
+实验结论：
+
+- `V10-sentence-window-vector` 说明纯句子级向量召回不适合作为主链路：chunk 更细以后，单个句子太碎，Answer 和 Citation 都明显下降。
+- `V10-sentence-window-hybrid` 的 Citation Accuracy 从 `0.901` 小幅提升到 `0.904`，但 Answer Accuracy Proxy 从 `0.476` 降到 `0.398`，说明它引用边界略好，但回答完整性下降。
+- `V11-structured-hybrid` 的 Answer Accuracy Proxy 从 `0.476` 升到 `0.487`，但 Hit@5 和 Citation 都下降到 `0.880`，说明 metadata boost 有时会把排序推向看似相关但不是期望制度的文档。
+- `V12` 同时叠加句子窗口和结构化 boost，结果没有超过 V6，说明增强策略叠加不一定带来收益。
+
+因此当前最终选择仍然是：
+
+```text
+V6-bge-small =
+结构感知 chunk + FAISS + BM25 + RRF + 主文档上下文补全 + 低置信拒答
+```
+
+面试中可以这样讲：
+
+> 我额外测试了两类索引优化。第一类是 sentence-window retrieval，即检索句子级 child chunk，再回填相邻句作为生成上下文；第二类是 structured retrieval，即在 RRF 后根据 department、process_type、risk_level、section_type 等 metadata 做 soft boost。实验发现 sentence-window hybrid 的 Citation 略高，但 Answer 明显下降；structured boost 的 Answer 略高，但 Hit@5 和 Citation 下降；两者叠加也没有超过原主链路。因此我没有为了复杂度而强行替换方案，最终保留结构化 chunk + FAISS + BM25 + RRF，因为它在引用准确、答案覆盖、拒答和延迟之间最均衡。
+
+如果面试官问“为什么 sentence-window 没有成为最终方案”，可以回答：
+
+> sentence-window 的优势是检索粒度更细，适合答案集中在某几句话里的场景。但企业制度问答经常需要流程、材料、时限、例外条件一起回答，单句命中会让上下文过碎。虽然回填了前后句，但本项目实验里 Answer Accuracy Proxy 明显下降，所以它暂时只作为增强候选。
+
+如果面试官问“为什么 structured retrieval 也没成为最终方案”，可以回答：
+
+> structured boost 确实提高了一点 Answer Accuracy Proxy，但 Hit@5 和 Citation Accuracy 下降，说明 metadata 加权有时会把结果推向业务上相似但不是标准答案的制度。企业制度问答更重视引用准确，所以暂时不进入主链路。
 
 ### 6.4 full 实验如何保持稳定
 
@@ -1549,3 +1648,8 @@ Embedding 选型可以单独这样讲：
 | 为什么不用 PGVector？ | PGVector 适合已有 PostgreSQL 和数据库权限/审计体系的企业应用；当前项目没有后端数据库，所以 FAISS 更轻、更适合本地复现。 |
 | 为什么不用 Elasticsearch？ | ES 适合已有搜索基础设施的企业，但本项目已实现 BM25 + 向量 + RRF，数据规模也小，不需要额外部署 ES。 |
 | 后续如果要优化向量库怎么办？ | 优先保留 FAISS 主链路，可轻量增加 Chroma 做本地持久化对比；Milvus/PGVector/ES 放在生产化选型分析里。 |
+| 当前项目用了什么索引方法？ | 结构化 chunk 索引 + FAISS 向量索引 + BM25 倒排检索 + RRF 融合 + 主文档上下文补全。 |
+| 什么是句子窗口检索？ | 检索时用句子级 child chunk 提高命中精度，生成时回填前后句，避免上下文过碎。 |
+| 为什么句子窗口没成为主方案？ | V10 hybrid 的 Citation 略高，但 Answer 从 0.476 降到 0.398，说明制度问答需要条款级完整上下文。 |
+| 什么是结构化检索？ | 在 RRF 后根据 department、process_type、risk_level、section_type 等 metadata 做 soft boost，而不是强过滤。 |
+| 为什么结构化检索没成为主方案？ | V11 Answer 略高，但 Hit@5 和 Citation 都降到 0.880，说明 metadata boost 会把排序推向相似但非标准答案的制度。 |

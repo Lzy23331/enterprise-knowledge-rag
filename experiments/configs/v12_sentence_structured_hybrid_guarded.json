@@ -1,0 +1,20 @@
+{
+  "id": "V12-sentence-structured-hybrid",
+  "name": "sentence_structured_hybrid_bge_small_guarded",
+  "stage": "full",
+  "description": "句子窗口索引 + 结构化 metadata soft boost + bge-small + BM25 + RRF + 低置信拒答，测试两类索引增强叠加效果。",
+  "chunk_strategy": "sentence_window",
+  "retriever": "structured_hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "sentence_window_size": 1,
+  "sentence_max_chars": 180,
+  "sentence_min_chars": 12,
+  "structured_boost": true,
+  "require_real_embedding": true,
+  "final_candidate": true,
+  "next_step": "只有在 Citation/Answer 明显超过 V6 且 p95 可接受时才考虑替换；否则说明索引增强不是越多越好。"
+}

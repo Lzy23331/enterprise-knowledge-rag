@@ -1,0 +1,17 @@
+{
+  "id": "V11-structured-hybrid",
+  "name": "structured_hybrid_bge_small_guarded",
+  "stage": "full",
+  "description": "结构化 metadata soft boost + bge-small + BM25 + RRF + 低置信拒答，测试部门、流程、风险和章节类型线索是否提升排序。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "structured_hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "structured_boost": true,
+  "require_real_embedding": true,
+  "final_candidate": true,
+  "next_step": "如果 Citation 或 MRR 提升且不牺牲拒答和延迟，可考虑进入主链路候选。"
+}

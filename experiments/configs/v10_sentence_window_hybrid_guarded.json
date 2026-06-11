@@ -1,0 +1,19 @@
+{
+  "id": "V10-sentence-window-hybrid",
+  "name": "hybrid_bge_small_sentence_window_guarded",
+  "stage": "full",
+  "description": "句子窗口索引 + bge-small + BM25 + RRF + 低置信拒答，测试命中句子后回填邻句是否提升最终问答。",
+  "chunk_strategy": "sentence_window",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "sentence_window_size": 1,
+  "sentence_max_chars": 180,
+  "sentence_min_chars": 12,
+  "require_real_embedding": true,
+  "final_candidate": false,
+  "next_step": "如果 Answer 提升但 Citation 下降，则保留为长上下文增强候选，不替换结构化 chunk 主链路。"
+}
