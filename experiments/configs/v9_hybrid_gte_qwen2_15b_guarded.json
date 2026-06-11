@@ -1,0 +1,21 @@
+{
+  "id": "V9-gte-qwen2-1.5b",
+  "name": "hybrid_gte_qwen2_15b_guarded",
+  "stage": "full",
+  "description": "Alibaba-NLP/gte-Qwen2-1.5B-instruct + BM25 + RRF + 低置信拒答，验证高性能 MTEB/C-MTEB 模型在最终链路中的收益和成本。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "embedding_trust_remote_code": true,
+  "query_instruction": "Instruct: Given a Chinese enterprise policy question, retrieve relevant policy clauses.\nQuery: ",
+  "document_instruction": "",
+  "normalize_embeddings": true,
+  "max_seq_length": 2048,
+  "require_real_embedding": true,
+  "final_candidate": true,
+  "next_step": "若指标收益不足以覆盖 trust_remote_code 和更高资源成本，则只保留为增强实验，不作为默认主链路。"
+}

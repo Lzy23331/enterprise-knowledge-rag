@@ -1,0 +1,20 @@
+{
+  "id": "V8-bge-m3",
+  "name": "vector_bge_m3_faiss",
+  "stage": "full",
+  "description": "BAAI/bge-m3 + FAISS，测试多语言、多粒度、长文本 embedding 在正式制度 PDF 与中文条款召回中的表现。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "vector_only",
+  "embedding_model": "BAAI/bge-m3",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "embedding_trust_remote_code": false,
+  "query_instruction": "",
+  "document_instruction": "",
+  "normalize_embeddings": true,
+  "max_seq_length": 2048,
+  "require_real_embedding": true,
+  "next_step": "如果 bge-m3 在 PDF 长条款召回上明显更好，再评估是否接受更高模型体积和索引构建成本。"
+}

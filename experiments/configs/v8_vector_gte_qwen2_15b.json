@@ -1,0 +1,20 @@
+{
+  "id": "V8-gte-qwen2-1.5b",
+  "name": "vector_gte_qwen2_15b_faiss",
+  "stage": "full",
+  "description": "Alibaba-NLP/gte-Qwen2-1.5B-instruct + FAISS，测试高性能 MTEB/C-MTEB 候选模型的纯向量召回上限。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "vector_only",
+  "embedding_model": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "embedding_trust_remote_code": true,
+  "query_instruction": "Instruct: Given a Chinese enterprise policy question, retrieve relevant policy clauses.\nQuery: ",
+  "document_instruction": "",
+  "normalize_embeddings": true,
+  "max_seq_length": 2048,
+  "require_real_embedding": true,
+  "next_step": "如果指标最高但 trust_remote_code、模型体积或延迟成本过高，则只作为增强实验结论，不进入默认主链路。"
+}

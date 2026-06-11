@@ -993,17 +993,51 @@ V6-bge-small hybrid_bge_small_faiss_guarded
 
 #### 6.3.4 Embedding 模型为什么选 bge-small
 
-真实 full 实验已经跑通了三个 sentence-transformers 模型：
+Embedding 选型分成两轮。
+
+第一轮先跑通稳定中文基线，确认项目不是依赖 `local-hashing` 兜底，而是真的使用 sentence-transformers + FAISS：
 
 | 模型 | 代表实验 | Answer Acc. | Hit@5 | Citation | Refusal | p95 latency |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| BAAI/bge-small-zh-v1.5 | V6-bge-small | 0.476 | 0.903 | 0.901 | 1.000 | 28.9 ms |
+| BAAI/bge-small-zh-v1.5 | V6-bge-small | 0.476 | 0.903 | 0.901 | 1.000 | 30.1 ms |
 | BAAI/bge-base-zh-v1.5 | V6-bge-base | 0.475 | 0.903 | 0.901 | 1.000 | 56.2 ms |
 | intfloat/multilingual-e5-small | V6-e5 | 0.469 | 0.903 | 0.901 | 1.000 | 37.3 ms |
 
 这三个模型在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，说明进入 hybrid RRF 链路之后，真实 embedding 模型都能稳定支撑语义召回。但 `bge-small` 的 Answer Accuracy Proxy 略高于另外两个模型，并且 p95 延迟明显低于 `bge-base`。所以最终选择 `BAAI/bge-small-zh-v1.5`，不是因为其他模型没跑通，而是因为它在当前中文企业制度数据上达到了更好的效果、速度和资源消耗平衡。
 
 `bge-base` 可以作为更大模型备选，但当前没有带来足够收益；`multilingual-e5-small` 更适合作为多语言场景备选，本项目主要是中文制度问答，因此不作为默认模型。
+
+第二轮从 MTEB/C-MTEB 和主流开源 embedding 模型中增加候选模型，用本项目自己的企业制度评估集复验。新增候选包括：
+
+| 模型 | 选择原因 | 风险点 |
+| --- | --- | --- |
+| Qwen/Qwen3-Embedding-0.6B | 近期榜单表现强，参数量相对可控 | 需要 `trust_remote_code=True`，延迟更高 |
+| BAAI/bge-m3 | 多语言、多粒度、长文本 embedding，适合长 PDF 制度 | 模型更大，索引构建和检索更慢 |
+| Alibaba-NLP/gte-Qwen2-1.5B-instruct | MTEB/C-MTEB 高性能候选 | 需要 `trust_remote_code=True`，当前依赖下 encode 失败 |
+
+本轮实验新增两组版本：
+
+```text
+V8-*：纯向量检索，观察模型本身语义召回能力。
+V9-*：最终 RAG 链路，固定结构分块 + FAISS + BM25 + RRF + 低置信拒答。
+```
+
+模型下载与离线复现结果保存在：
+
+```text
+docs/EMBEDDING_MODEL_SELECTION.md
+```
+
+当前 MTEB 候选模型复验结果：
+
+| 模型 | 代表实验 | Answer Acc. | Hit@5 | Citation | Refusal | p95 latency | 结论 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| BAAI/bge-small-zh-v1.5 | V6-bge-small | 0.476 | 0.903 | 0.901 | 1.000 | 30.1 ms | 默认主模型 |
+| Qwen/Qwen3-Embedding-0.6B | V9-qwen3-0.6b | 0.472 | 0.910 | 0.907 | 1.000 | 222.2 ms | Citation 略高，但延迟过高且 Answer 略低 |
+| BAAI/bge-m3 | V9-bge-m3 | 0.484 | 0.900 | 0.898 | 1.000 | 111.9 ms | Answer 略高，但 Citation 略低且延迟明显更高 |
+| Alibaba-NLP/gte-Qwen2-1.5B-instruct | V9-gte-qwen2-1.5b | skipped | - | - | - | - | 当前依赖下 encode 失败 |
+
+这轮复验说明：MTEB 排名更高的模型不一定在本项目场景里直接替代 `bge-small`。企业制度问答的主指标不是单纯语义相似度，而是“召回正确制度 + 引用准确 + 能拒答 + 延迟可接受”。`Qwen3-Embedding-0.6B` 的 Citation Accuracy 从 `0.901` 小幅提升到 `0.907`，但 p95 延迟从 `30.1 ms` 上升到 `222.2 ms`；`bge-m3` 的 Answer Accuracy Proxy 从 `0.476` 小幅提升到 `0.484`，但 Citation Accuracy 从 `0.901` 降到 `0.898`，p95 延迟升到 `111.9 ms`。因此当前仍保留 `BAAI/bge-small-zh-v1.5` 作为默认主链路 embedding。
 
 #### 6.3.5 最终权衡结论
 
@@ -1017,7 +1051,7 @@ V6-recursive 更强。
 V6-bge-small 更合适。
 
 如果未来问题更偏长上下文综合问答：
-可以继续验证 V6-semantic。
+可以继续验证 V6-semantic 或 bge-m3。
 ```
 
 所以本项目当前主链路选择：

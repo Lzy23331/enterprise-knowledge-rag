@@ -1,0 +1,20 @@
+{
+  "id": "V8-qwen3-0.6b",
+  "name": "vector_qwen3_embedding_06b_faiss",
+  "stage": "full",
+  "description": "Qwen3-Embedding-0.6B + FAISS，测试近期 MTEB/C-MTEB 强模型在企业制度纯向量召回中的表现。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "vector_only",
+  "embedding_model": "Qwen/Qwen3-Embedding-0.6B",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "embedding_trust_remote_code": true,
+  "query_instruction": "Instruct: 检索与企业制度问题最相关的制度条款。\nQuery: ",
+  "document_instruction": "",
+  "normalize_embeddings": true,
+  "max_seq_length": 2048,
+  "require_real_embedding": true,
+  "next_step": "如果纯向量召回优于 bge-small，再进入 V9 final-chain 对比；若加载成本过高，则保留为榜单候选但不默认部署。"
+}

@@ -52,6 +52,12 @@ class ExperimentConfig:
     semantic_embedding_model: str = "BAAI/bge-small-zh-v1.5"
     semantic_similarity_threshold: float = 0.72
     semantic_max_chunk_size: int = 1200
+    embedding_trust_remote_code: bool = False
+    query_instruction: str = ""
+    document_instruction: str = ""
+    normalize_embeddings: bool = True
+    max_seq_length: Optional[int] = None
+    require_real_embedding: bool = False
 
     @classmethod
     def from_path(cls, path: Path) -> "ExperimentConfig":
@@ -242,6 +248,10 @@ class ExperimentRunner:
         self.retriever = None
         self.index_build_ms = 0.0
         self.vector_backend_used = config.vector_backend
+        self.model_load_ms = 0.0
+        self.embedding_dimension = 0
+        self.embedding_load_mode = "none"
+        self.embedding_used_fallback = False
 
     def initialize(self) -> None:
         if self.config.retriever == "llm_direct":
@@ -267,8 +277,27 @@ class ExperimentRunner:
             self.retriever = BM25TextRetriever(self.chunks, k=max(TOP_K * 4, 20))
         elif self.config.retriever in {"vector_only", "hybrid_rrf"}:
             index_path = OUTPUT_DIR / "index_cache" / self.config.name
-            vector_index = VectorIndex(self.config.embedding_model, index_path)
-            vectorstore = vector_index.build(self.chunks)
+            try:
+                vector_index = VectorIndex(
+                    self.config.embedding_model,
+                    index_path,
+                    trust_remote_code=self.config.embedding_trust_remote_code,
+                    query_instruction=self.config.query_instruction,
+                    document_instruction=self.config.document_instruction,
+                    normalize_embeddings=self.config.normalize_embeddings,
+                    max_seq_length=self.config.max_seq_length,
+                    require_real_embedding=self.config.require_real_embedding,
+                )
+            except Exception as exc:
+                raise ExperimentSkipped(f"Embedding model unavailable: {self.config.embedding_model}; {exc}") from exc
+            try:
+                vectorstore = vector_index.build(self.chunks)
+            except Exception as exc:
+                raise ExperimentSkipped(f"Embedding build failed: {self.config.embedding_model}; {exc}") from exc
+            self.model_load_ms = vectorstore.embeddings.model_load_ms
+            self.embedding_dimension = vectorstore.embeddings.embedding_dimension
+            self.embedding_load_mode = vectorstore.embeddings.load_mode
+            self.embedding_used_fallback = vectorstore.embeddings.used_fallback
             if self.config.embedding_model != "local-hashing" and vectorstore.embeddings.used_fallback:
                 raise ExperimentSkipped(f"Embedding model unavailable: {self.config.embedding_model}")
             if self.config.vector_backend == "numpy":
@@ -387,6 +416,11 @@ def evaluate_experiment(config: ExperimentConfig, cases: List[Dict[str, Any]]) -
             "metadata_filter": config.metadata_filter,
             "refusal_gate": config.refusal_gate,
             "index_build_ms": runner.index_build_ms,
+            "model_load_ms": runner.model_load_ms,
+            "embedding_dimension": runner.embedding_dimension,
+            "embedding_load_mode": runner.embedding_load_mode,
+            "embedding_used_fallback": runner.embedding_used_fallback,
+            "embedding_trust_remote_code": config.embedding_trust_remote_code,
             "chunks": len(runner.chunks),
         }
     )
@@ -429,6 +463,11 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
         "latency_p50_ms",
         "latency_p95_ms",
         "index_build_ms",
+        "model_load_ms",
+        "embedding_dimension",
+        "embedding_load_mode",
+        "embedding_used_fallback",
+        "embedding_trust_remote_code",
         "chunks",
         "chunk_strategy",
         "retriever",
@@ -453,6 +492,7 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
                         "retriever": config["retriever"],
                         "embedding_model": config["embedding_model"],
                         "vector_backend": config["vector_backend"],
+                        "embedding_trust_remote_code": config.get("embedding_trust_remote_code", False),
                         "query_rewrite": config["query_rewrite"],
                         "metadata_filter": config["metadata_filter"],
                         "refusal_gate": config["refusal_gate"],
@@ -560,6 +600,45 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
             f"{config['description']} |"
         )
 
+    embedding_rows = []
+    embedding_ids = [
+        "V6-bge-small",
+        "V9-qwen3-0.6b",
+        "V9-bge-m3",
+        "V9-gte-qwen2-1.5b",
+    ]
+    by_id = {result["config"]["id"]: result for result in results}
+    for config_id in embedding_ids:
+        result = by_id.get(config_id)
+        if not result:
+            continue
+        config = result["config"]
+        if result["status"] == "skipped":
+            embedding_rows.append(
+                f"| {config_id} | {config['embedding_model']} | skipped | - | - | - | - | - | {result.get('skip_reason', '')} |"
+            )
+            continue
+        summary = result["summary"]
+        embedding_rows.append(
+            f"| {config_id} | {summary['embedding_model']} | completed | {summary.get('embedding_dimension', 0)} | "
+            f"{summary.get('model_load_ms', 0):.1f} | {summary['answer_accuracy_proxy']:.3f} | "
+            f"{summary['citation_accuracy']:.3f} | {summary['latency_p95_ms']:.1f} | "
+            f"trust_remote_code={summary.get('embedding_trust_remote_code', False)}; load_mode={summary.get('embedding_load_mode', '')} |"
+        )
+    if embedding_rows:
+        lines.extend(
+            [
+                "",
+                "## Embedding Model Findings",
+                "",
+                "| Version | Model | Status | Dim | Load ms | Answer Acc. | Citation | p95 ms | Notes |",
+                "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+                *embedding_rows,
+                "",
+                "Decision rule: MTEB/C-MTEB rank is only used to choose candidates. The project default changes only when a candidate improves enterprise-policy RAG metrics enough to justify latency, disk, memory, and dependency cost.",
+            ]
+        )
+
     chunking_rows = []
     chunking_targets = [
         ("V2", "Fixed window", "粗粒度窗口召回强，但引用边界弱。"),
@@ -650,9 +729,10 @@ def main() -> None:
     parser.add_argument("--full", action="store_true", help="Run quick experiments plus full embedding-model configs.")
     parser.add_argument("--offline", action="store_true", help="Use local Hugging Face cache only; skipped model configs are allowed.")
     parser.add_argument("--allow-skip", action="store_true", help="Allow unavailable embedding configs to be marked skipped.")
+    parser.add_argument("--strict", action="store_true", help="Fail the run if any full embedding config is skipped.")
     args = parser.parse_args()
     mode = "full" if args.full else "quick"
-    strict = mode == "full" and not args.offline and not args.allow_skip
+    strict = args.strict and mode == "full" and not args.allow_skip
 
     local_embedding_only = os.getenv("SMARTOFFICE_EMBEDDING_LOCAL_ONLY", "1") == "1"
     if args.offline or local_embedding_only:

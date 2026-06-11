@@ -2,6 +2,7 @@ import hashlib
 import os
 import pickle
 import re
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -24,14 +25,33 @@ except Exception:
 
 
 class EmbeddingModel:
-    def __init__(self, model_name: str, fallback_dim: int = 512):
+    def __init__(
+        self,
+        model_name: str,
+        fallback_dim: int = 512,
+        trust_remote_code: bool = False,
+        query_instruction: str = "",
+        document_instruction: str = "",
+        normalize_embeddings: bool = True,
+        max_seq_length: Optional[int] = None,
+        require_real_embedding: bool = False,
+    ):
         self.model_name = model_name
         self.fallback_dim = fallback_dim
+        self.trust_remote_code = trust_remote_code
+        self.query_instruction = query_instruction
+        self.document_instruction = document_instruction
+        self.normalize_embeddings = normalize_embeddings
+        self.max_seq_length = max_seq_length
+        self.require_real_embedding = require_real_embedding
         self.model = None
         self.load_mode = "local-hashing" if model_name == "local-hashing" else "uninitialized"
         self.used_fallback = model_name == "local-hashing"
+        self.model_load_ms = 0.0
+        self.embedding_dimension = fallback_dim if model_name == "local-hashing" else 0
         if model_name == "local-hashing":
             return
+        started = time.perf_counter()
         global SentenceTransformer
         if SentenceTransformer is None:
             try:
@@ -39,8 +59,7 @@ class EmbeddingModel:
 
                 SentenceTransformer = LoadedSentenceTransformer
             except Exception as exc:
-                print(f"Embedding library is unavailable, falling back to local hashing vectors: {exc}")
-                self.used_fallback = True
+                self._handle_unavailable(f"Embedding library is unavailable: {exc}")
                 return
         if SentenceTransformer is not None:
             try:
@@ -48,28 +67,52 @@ class EmbeddingModel:
                 if local_only:
                     os.environ.setdefault("HF_HUB_OFFLINE", "1")
                     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-                self.model = SentenceTransformer(model_name, local_files_only=local_only)
+                self.model = SentenceTransformer(
+                    model_name,
+                    local_files_only=local_only,
+                    trust_remote_code=trust_remote_code,
+                )
+                if max_seq_length:
+                    self.model.max_seq_length = max_seq_length
+                if hasattr(self.model, "get_sentence_embedding_dimension"):
+                    self.embedding_dimension = int(self.model.get_sentence_embedding_dimension() or 0)
                 self.load_mode = "local_cache" if local_only else "online_or_cache"
             except Exception as exc:
-                print(f"Embedding model is unavailable, falling back to local hashing vectors: {exc}")
-                self.load_mode = "fallback"
-                self.used_fallback = True
+                self._handle_unavailable(f"Embedding model is unavailable: {exc}")
+            finally:
+                self.model_load_ms = (time.perf_counter() - started) * 1000
+
+    def _handle_unavailable(self, message: str) -> None:
+        if self.require_real_embedding:
+            raise RuntimeError(message)
+        print(f"{message}, falling back to local hashing vectors.")
+        self.load_mode = "fallback"
+        self.used_fallback = True
+        self.embedding_dimension = self.fallback_dim
 
     def embed_documents(self, texts: List[str]) -> np.ndarray:
         if self.model is not None:
+            encoded_texts = [self._with_instruction(text, self.document_instruction) for text in texts]
             return np.array(
-                self.model.encode(texts, normalize_embeddings=True, show_progress_bar=False),
+                self.model.encode(encoded_texts, normalize_embeddings=self.normalize_embeddings, show_progress_bar=False),
                 dtype=np.float32,
             )
         return np.vstack([self._hash_embed(text) for text in texts]).astype(np.float32)
 
     def embed_query(self, text: str) -> np.ndarray:
         if self.model is not None:
+            encoded_text = self._with_instruction(text, self.query_instruction)
             return np.array(
-                self.model.encode([text], normalize_embeddings=True, show_progress_bar=False)[0],
+                self.model.encode([encoded_text], normalize_embeddings=self.normalize_embeddings, show_progress_bar=False)[0],
                 dtype=np.float32,
             )
         return self._hash_embed(text).astype(np.float32)
+
+    @staticmethod
+    def _with_instruction(text: str, instruction: str) -> str:
+        if not instruction:
+            return text
+        return instruction + text
 
     def _hash_embed(self, text: str) -> np.ndarray:
         vector = np.zeros(self.fallback_dim, dtype=np.float32)
@@ -138,10 +181,28 @@ class VectorRetriever:
 
 
 class VectorIndex:
-    def __init__(self, model_name: str, index_path: Path):
+    def __init__(
+        self,
+        model_name: str,
+        index_path: Path,
+        trust_remote_code: bool = False,
+        query_instruction: str = "",
+        document_instruction: str = "",
+        normalize_embeddings: bool = True,
+        max_seq_length: Optional[int] = None,
+        require_real_embedding: bool = False,
+    ):
         self.model_name = model_name
         self.index_path = Path(index_path)
-        self.embeddings = EmbeddingModel(model_name)
+        self.embeddings = EmbeddingModel(
+            model_name,
+            trust_remote_code=trust_remote_code,
+            query_instruction=query_instruction,
+            document_instruction=document_instruction,
+            normalize_embeddings=normalize_embeddings,
+            max_seq_length=max_seq_length,
+            require_real_embedding=require_real_embedding,
+        )
         self.vectorstore: Optional[VectorStore] = None
 
     def load(self, documents: Optional[List[Document]] = None):

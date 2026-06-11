@@ -1,0 +1,21 @@
+{
+  "id": "V9-qwen3-0.6b",
+  "name": "hybrid_qwen3_embedding_06b_guarded",
+  "stage": "full",
+  "description": "Qwen3-Embedding-0.6B + BM25 + RRF + 低置信拒答，验证榜单强模型在最终 RAG 链路中是否优于 bge-small。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "Qwen/Qwen3-Embedding-0.6B",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "embedding_trust_remote_code": true,
+  "query_instruction": "Instruct: 检索与企业制度问题最相关的制度条款。\nQuery: ",
+  "document_instruction": "",
+  "normalize_embeddings": true,
+  "max_seq_length": 2048,
+  "require_real_embedding": true,
+  "final_candidate": true,
+  "next_step": "若 Citation/Refusal 持平且 Answer Accuracy Proxy 明显提升，同时 p95 可接受，则考虑替换 bge-small。"
+}

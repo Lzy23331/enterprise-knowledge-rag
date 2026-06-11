@@ -1,0 +1,21 @@
+{
+  "id": "V9-bge-m3",
+  "name": "hybrid_bge_m3_guarded",
+  "stage": "full",
+  "description": "BAAI/bge-m3 + BM25 + RRF + 低置信拒答，验证多语言长文本 embedding 在最终制度问答链路中的收益。",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-m3",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "embedding_trust_remote_code": false,
+  "query_instruction": "",
+  "document_instruction": "",
+  "normalize_embeddings": true,
+  "max_seq_length": 2048,
+  "require_real_embedding": true,
+  "final_candidate": true,
+  "next_step": "若 PDF 长制度问题收益明显且延迟可接受，则作为 bge-small 的多语言/长文本升级候选。"
+}
