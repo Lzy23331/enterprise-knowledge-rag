@@ -914,24 +914,120 @@ experiments/
 | V6-semantic | hybrid_bge_small_semantic_guarded | 0.479 | 0.903 | 0.901 | 1.000 |
 | V7 | query_rewrite_metadata_guarded | 0.445 | 0.900 | 0.898 | 1.000 |
 
-最终选择：
+#### 6.3.1 最终主链路到底选择了什么
+
+当前项目的最终主链路选择是：
 
 ```text
-BAAI/bge-small-zh-v1.5 + FAISS + BM25 + RRF + 低置信拒答
+文档加载：
+Markdown front matter loader + PDF PyPDFLoader + sidecar metadata
+
+文本分块：
+Markdown 标题结构分块 + PDF 正式制度章条结构分块
+
+Embedding：
+BAAI/bge-small-zh-v1.5
+
+向量库：
+FAISS
+
+检索融合：
+BM25 + dense vector retrieval + RRF
+
+生成前控制：
+低置信拒答 gate + citation trace
 ```
 
-原因：
+对应实验版本是：
 
-- 相比 local-hashing，bge-small hybrid 的 Answer Accuracy Proxy 从 0.440 提升到 0.476。
-- bge-small、bge-base、e5 在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平。
-- bge-small 的 p95 延迟约 29.2 ms，明显低于 bge-base 的 61.4 ms。
-- e5 的 Answer Accuracy Proxy 低于 bge 系列，因此作为多语言备选，不作为中文制度主链路。
+```text
+V6-bge-small hybrid_bge_small_faiss_guarded
+```
 
-分块策略结论：
+也就是说，最终不是选择 `recursive_character`，也不是把 `semantic` 作为主链路，而是选择“制度结构感知分块 + bge-small + FAISS + BM25/RRF + 拒答门控”。
 
-- `recursive_character` 的 V6-recursive 在 Answer Accuracy Proxy 和 Hit@5 上最高，但 Citation Accuracy 只有 0.531，说明它更擅长宽召回和答案覆盖，不适合制度问答里严格的条款级溯源。
-- `semantic` 的 V6-semantic 与结构分块在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，Answer Accuracy Proxy 略高，但分块阶段需要额外 embedding 计算。
-- `markdown_headers` / PDF 章条结构分块仍是部署主策略，因为 Citation Accuracy 达到 0.901，更符合企业制度问答“答案必须可追溯”的业务要求。
+#### 6.3.2 为什么不能只看 Answer Accuracy Proxy
+
+从表面看，`V6-recursive` 的 Answer Accuracy Proxy 是 `0.565`，高于 `V6-bge-small` 的 `0.476`。如果这是一个普通 FAQ 或开放问答项目，只追求“回答内容覆盖更多关键词”，递归分块可能很有吸引力。
+
+但本项目是企业制度问答，业务目标不是“看起来回答得更丰富”，而是：
+
+```text
+1. 答案必须来自制度库；
+2. 答案必须能追溯到具体制度、章节、条款；
+3. 知识库外问题必须拒答；
+4. 高风险问题不能靠模型猜测；
+5. 员工和支持部门能拿引用结果去复核。
+```
+
+因此评估时不能只看 Answer Accuracy Proxy，还要同时看：
+
+| 指标 | 在本项目中的意义 |
+| --- | --- |
+| Answer Accuracy Proxy | 回答文本是否覆盖参考答案关键词 |
+| Hit@5 | 前 5 个召回片段是否命中正确制度 |
+| Citation Accuracy | 引用来源是否真的来自预期制度或条款 |
+| Refusal Accuracy | 知识库外问题是否能拒答 |
+| p95 latency | 线上交互是否稳定、够快 |
+
+在制度问答里，`Citation Accuracy` 和 `Refusal Accuracy` 的权重高于单纯的 Answer Accuracy Proxy。原因很简单：企业内部制度问答的风险主要来自“答错且看起来很像真的”，而不是“回答不够长”。
+
+#### 6.3.3 分块策略对比和取舍
+
+本项目实际对比了三类有代表性的分块策略。
+
+| 分块策略 | 代表实验 | Answer Acc. | Hit@5 | Citation | 结论 |
+| --- | --- | ---: | ---: | ---: | --- |
+| 固定窗口分块 | V2 | 0.508 | 1.000 | 0.458 | 召回强，但容易切断制度标题和条款边界 |
+| 递归字符分块 | V6-recursive | 0.565 | 0.963 | 0.531 | 答案覆盖最好，但引用边界不稳定 |
+| 结构感知分块 | V6-bge-small | 0.476 | 0.903 | 0.901 | 引用准确率最高，适合制度问答主链路 |
+| 语义分块 | V6-semantic | 0.479 | 0.903 | 0.901 | 效果接近结构分块，但构建阶段多一次 embedding 成本 |
+
+固定窗口分块的逻辑最简单：按固定长度切，例如每 900 个字符一个 chunk，并保留一定 overlap。它的好处是容易实现、chunk 数少、召回速度快；缺点是它不了解制度文档的自然结构，可能把“章节标题”和“具体条款”切开，导致 citation 只能命中文档片段，却很难稳定命中业务上可解释的条款边界。
+
+递归字符分块比固定窗口更自然。它会优先按照空行、换行、句号、分号、逗号等边界切分，所以更不容易在句子中间截断。实验里它的 Answer Accuracy Proxy 最高，说明它确实更擅长保留较完整的上下文，能让回答覆盖更多参考答案关键词。但它的 Citation Accuracy 只有 `0.531`，远低于结构感知分块的 `0.901`。这说明它召回到的内容可能是相关的，但不够稳定地落在正确制度条款上。
+
+结构感知分块是当前主策略。Markdown 制度按标题层级切，PDF 制度按“第一章”“第一条”“附件”“审批流程”等正式制度结构切。它的 Answer Accuracy Proxy 不是最高，但 Citation Accuracy 达到 `0.901`，Refusal Accuracy 达到 `1.000`。这更符合企业政策问答的业务要求：答案可以少一点，但必须有明确依据。
+
+语义分块是增强候选。它先按制度结构得到基础单元，再使用 `BAAI/bge-small-zh-v1.5` 对相邻单元做 embedding，如果相邻内容语义相近且合并后不超过最大长度，就合并为一个更大的 semantic chunk。实验中 `V6-semantic` 的 Answer Accuracy Proxy 为 `0.479`，略高于结构分块的 `0.476`，Citation Accuracy 同样是 `0.901`。这说明语义分块有潜力，但当前收益很小，并且构建索引时需要额外 embedding 计算，所以暂时作为增强候选，不作为默认主链路。
+
+#### 6.3.4 Embedding 模型为什么选 bge-small
+
+真实 full 实验已经跑通了三个 sentence-transformers 模型：
+
+| 模型 | 代表实验 | Answer Acc. | Hit@5 | Citation | Refusal | p95 latency |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| BAAI/bge-small-zh-v1.5 | V6-bge-small | 0.476 | 0.903 | 0.901 | 1.000 | 28.9 ms |
+| BAAI/bge-base-zh-v1.5 | V6-bge-base | 0.475 | 0.903 | 0.901 | 1.000 | 56.2 ms |
+| intfloat/multilingual-e5-small | V6-e5 | 0.469 | 0.903 | 0.901 | 1.000 | 37.3 ms |
+
+这三个模型在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，说明进入 hybrid RRF 链路之后，真实 embedding 模型都能稳定支撑语义召回。但 `bge-small` 的 Answer Accuracy Proxy 略高于另外两个模型，并且 p95 延迟明显低于 `bge-base`。所以最终选择 `BAAI/bge-small-zh-v1.5`，不是因为其他模型没跑通，而是因为它在当前中文企业制度数据上达到了更好的效果、速度和资源消耗平衡。
+
+`bge-base` 可以作为更大模型备选，但当前没有带来足够收益；`multilingual-e5-small` 更适合作为多语言场景备选，本项目主要是中文制度问答，因此不作为默认模型。
+
+#### 6.3.5 最终权衡结论
+
+最终选择可以这样理解：
+
+```text
+如果只追求回答覆盖：
+V6-recursive 更强。
+
+如果追求制度问答的可追溯、可解释、可上线：
+V6-bge-small 更合适。
+
+如果未来问题更偏长上下文综合问答：
+可以继续验证 V6-semantic。
+```
+
+所以本项目当前主链路选择：
+
+```text
+V6-bge-small =
+结构感知分块 + BAAI/bge-small-zh-v1.5 + FAISS + BM25 + RRF + 低置信拒答
+```
+
+这个选择体现的是工程和业务权衡：不用单一指标决定方案，而是同时考虑问答准确性、引用可信度、拒答能力、延迟和构建成本。对于企业制度问答，“能指出依据”比“回答看起来更完整”更重要。
 
 ### 6.4 full 实验如何保持稳定
 
