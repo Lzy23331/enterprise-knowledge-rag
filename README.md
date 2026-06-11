@@ -107,8 +107,12 @@ full 迭代结果摘要：
 | V6-bge-small | bge-small + BM25 + RRF + 拒答 | 0.476 | 0.903 | 0.901 | 1.000 |
 | V6-bge-base | bge-base + BM25 + RRF + 拒答 | 0.475 | 0.903 | 0.901 | 1.000 |
 | V6-e5 | multilingual-e5 + BM25 + RRF + 拒答 | 0.469 | 0.903 | 0.901 | 1.000 |
+| V6-recursive | 递归字符分块 + bge-small + RRF + 拒答 | 0.565 | 0.963 | 0.531 | 1.000 |
+| V6-semantic | 语义分块 + bge-small + RRF + 拒答 | 0.479 | 0.903 | 0.901 | 1.000 |
 
 说明：`local-hashing` 只作为快速可复现 baseline；真实 full 实验显示三种 embedding 在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，bge-small 的 Answer Accuracy Proxy 最高且 p95 延迟明显低于 bge-base，因此最终选择 `BAAI/bge-small-zh-v1.5 + BM25 + RRF + 低置信拒答`。
+
+分块实验结论：递归字符分块在 Hit@5 和 Answer Accuracy Proxy 上表现更强，但 Citation Accuracy 明显低于制度结构分块；语义分块与结构分块的 Citation Accuracy 持平，Answer Accuracy Proxy 略高，但需要额外 embedding 分块成本。因此本项目部署主策略仍选择 Markdown header / PDF 章条结构感知分块，递归分块作为通用 fallback，语义分块作为后续增强候选。
 
 ## 运行方式
 

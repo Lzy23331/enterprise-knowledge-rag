@@ -24,6 +24,9 @@ class PolicyDocumentLoader:
         chunk_strategy: str = "markdown_headers",
         fixed_chunk_size: int = 900,
         fixed_chunk_overlap: int = 120,
+        semantic_embedding_model: str = "BAAI/bge-small-zh-v1.5",
+        semantic_similarity_threshold: float = 0.72,
+        semantic_max_chunk_size: int = 1200,
     ):
         self.data_path = Path(data_path)
         self.pdf_path = Path(pdf_path) if pdf_path else None
@@ -31,6 +34,9 @@ class PolicyDocumentLoader:
         self.chunk_strategy = chunk_strategy
         self.fixed_chunk_size = fixed_chunk_size
         self.fixed_chunk_overlap = fixed_chunk_overlap
+        self.semantic_embedding_model = semantic_embedding_model
+        self.semantic_similarity_threshold = semantic_similarity_threshold
+        self.semantic_max_chunk_size = semantic_max_chunk_size
 
     def load_parent_documents(self) -> List[Document]:
         if not self.data_path.exists():
@@ -53,11 +59,19 @@ class PolicyDocumentLoader:
                     chunk_size=self.fixed_chunk_size,
                     overlap=self.fixed_chunk_overlap,
                 )
+            elif self.chunk_strategy == "recursive_character":
+                split_docs = self._split_recursive_character(
+                    parent.page_content,
+                    chunk_size=self.fixed_chunk_size,
+                    overlap=self.fixed_chunk_overlap,
+                )
             elif self.chunk_strategy == "markdown_headers":
                 if parent.metadata.get("source_type") == "pdf":
                     split_docs = self._split_formal_policy(parent.page_content)
                 else:
                     split_docs = self._split_markdown_by_headers(parent.page_content)
+            elif self.chunk_strategy == "semantic":
+                split_docs = self._split_semantic(parent)
             else:
                 raise ValueError(f"Unsupported chunk strategy: {self.chunk_strategy}")
 
@@ -83,6 +97,71 @@ class PolicyDocumentLoader:
                 )
                 chunks.append(chunk)
         return chunks
+
+    def _split_semantic(self, parent: Document) -> List[Document]:
+        if parent.metadata.get("source_type") == "pdf":
+            base_units = self._split_formal_policy(parent.page_content)
+        else:
+            base_units = self._split_markdown_by_headers(parent.page_content)
+        base_units = [unit for unit in base_units if unit.page_content.strip()]
+        if len(base_units) <= 1:
+            return base_units
+
+        from .indexing import EmbeddingModel
+
+        embeddings = EmbeddingModel(self.semantic_embedding_model)
+        vectors = embeddings.embed_documents([unit.page_content for unit in base_units])
+
+        documents: List[Document] = []
+        group_units: List[Document] = [base_units[0]]
+        group_start = 0
+
+        def flush(end_index: int) -> None:
+            if not group_units:
+                return
+            content = "\n\n".join(unit.page_content for unit in group_units).strip()
+            first_section = self._unit_section(group_units[0])
+            last_section = self._unit_section(group_units[-1])
+            section = first_section if first_section == last_section else f"{first_section} -> {last_section}"
+            documents.append(
+                Document(
+                    page_content=content,
+                    metadata={
+                        "section_1": f"语义片段 {len(documents) + 1}",
+                        "section_path": section,
+                        "section_type": "semantic",
+                        "semantic_start_unit": group_start,
+                        "semantic_end_unit": end_index,
+                        "semantic_unit_count": len(group_units),
+                        "semantic_embedding_model": self.semantic_embedding_model,
+                        "semantic_similarity_threshold": self.semantic_similarity_threshold,
+                    },
+                )
+            )
+
+        for index in range(1, len(base_units)):
+            previous_vector = vectors[index - 1]
+            current_vector = vectors[index]
+            similarity = float(previous_vector @ current_vector)
+            candidate_size = sum(len(unit.page_content) for unit in group_units) + len(base_units[index].page_content)
+            if similarity >= self.semantic_similarity_threshold and candidate_size <= self.semantic_max_chunk_size:
+                group_units.append(base_units[index])
+            else:
+                flush(index - 1)
+                group_units = [base_units[index]]
+                group_start = index
+        flush(len(base_units) - 1)
+        return documents
+
+    @staticmethod
+    def _unit_section(unit: Document) -> str:
+        return (
+            unit.metadata.get("section_path")
+            or unit.metadata.get("section_3")
+            or unit.metadata.get("section_2")
+            or unit.metadata.get("section_1")
+            or "语义片段"
+        )
 
     @staticmethod
     def _split_markdown_by_headers(text: str) -> List[Document]:
@@ -230,3 +309,71 @@ class PolicyDocumentLoader:
             start = end - overlap
             index += 1
         return documents
+
+    @staticmethod
+    def _split_recursive_character(text: str, chunk_size: int = 900, overlap: int = 120) -> List[Document]:
+        cleaned = "\n".join(line.rstrip() for line in text.splitlines()).strip()
+        if not cleaned:
+            return []
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive.")
+        if overlap < 0 or overlap >= chunk_size:
+            raise ValueError("overlap must be non-negative and smaller than chunk_size.")
+
+        pieces = PolicyDocumentLoader._recursive_split_text(
+            cleaned,
+            separators=["\n\n", "\n", "。", "；", "，", " ", ""],
+            chunk_size=chunk_size,
+        )
+        chunks: List[str] = []
+        current = ""
+        for piece in pieces:
+            candidate = f"{current}{piece}" if not current else f"{current}{piece}"
+            if len(candidate) <= chunk_size:
+                current = candidate
+            else:
+                if current.strip():
+                    chunks.append(current.strip())
+                current = piece
+        if current.strip():
+            chunks.append(current.strip())
+
+        documents: List[Document] = []
+        for index, content in enumerate(chunks, 1):
+            if overlap and documents:
+                previous_tail = documents[-1].page_content[-overlap:]
+                content = f"{previous_tail}\n{content}".strip()
+            documents.append(
+                Document(
+                    page_content=content,
+                    metadata={
+                        "section_1": f"递归字符片段 {index}",
+                        "section_type": "recursive_character",
+                        "chunking_strategy": "recursive_character",
+                    },
+                )
+            )
+        return documents
+
+    @staticmethod
+    def _recursive_split_text(text: str, separators: List[str], chunk_size: int) -> List[str]:
+        if len(text) <= chunk_size:
+            return [text]
+        separator = separators[0]
+        if separator == "":
+            return [text[index : index + chunk_size] for index in range(0, len(text), chunk_size)]
+
+        pieces = text.split(separator)
+        if len(pieces) == 1:
+            return PolicyDocumentLoader._recursive_split_text(text, separators[1:], chunk_size)
+
+        results: List[str] = []
+        for index, piece in enumerate(pieces):
+            if not piece:
+                continue
+            piece = piece + (separator if index < len(pieces) - 1 else "")
+            if len(piece) <= chunk_size:
+                results.append(piece)
+            else:
+                results.extend(PolicyDocumentLoader._recursive_split_text(piece, separators[1:], chunk_size))
+        return results

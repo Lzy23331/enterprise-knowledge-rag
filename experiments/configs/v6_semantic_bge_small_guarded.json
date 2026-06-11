@@ -1,0 +1,17 @@
+{
+  "id": "V6-semantic",
+  "name": "hybrid_bge_small_semantic_guarded",
+  "stage": "full",
+  "description": "语义分块 + bge-small + BM25 + RRF + 低置信拒答，测试 semantic chunking 在最终链路中的收益。",
+  "chunk_strategy": "semantic",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "semantic_embedding_model": "BAAI/bge-small-zh-v1.5",
+  "semantic_similarity_threshold": 0.72,
+  "semantic_max_chunk_size": 1200,
+  "next_step": "如果答案完整性提升但 citation 下降，应说明制度类文档仍优先采用结构感知分块。"
+}

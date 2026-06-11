@@ -1,0 +1,17 @@
+{
+  "id": "V4-semantic",
+  "name": "vector_bge_small_semantic_faiss",
+  "stage": "full",
+  "description": "语义分块 + bge-small + FAISS，测试 semantic chunking 对纯向量召回的影响。",
+  "chunk_strategy": "semantic",
+  "retriever": "vector_only",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": false,
+  "semantic_embedding_model": "BAAI/bge-small-zh-v1.5",
+  "semantic_similarity_threshold": 0.72,
+  "semantic_max_chunk_size": 1200,
+  "next_step": "与结构分块纯向量结果对比，判断语义合并是否提升自然语言召回。"
+}

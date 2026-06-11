@@ -1,0 +1,16 @@
+{
+  "id": "V6-recursive",
+  "name": "hybrid_bge_small_recursive_guarded",
+  "stage": "full",
+  "description": "递归字符分块 + bge-small + BM25 + RRF + 低置信拒答，测试通用分块在最终链路中的可用性。",
+  "chunk_strategy": "recursive_character",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "fixed_chunk_size": 900,
+  "fixed_chunk_overlap": 120,
+  "next_step": "如果指标接近但 citation 较弱，继续保留结构分块作为制度文档主策略。"
+}

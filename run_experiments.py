@@ -49,6 +49,9 @@ class ExperimentConfig:
     final_candidate: bool = False
     fixed_chunk_size: int = 900
     fixed_chunk_overlap: int = 120
+    semantic_embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    semantic_similarity_threshold: float = 0.72
+    semantic_max_chunk_size: int = 1200
 
     @classmethod
     def from_path(cls, path: Path) -> "ExperimentConfig":
@@ -250,6 +253,9 @@ class ExperimentRunner:
             chunk_strategy=self.config.chunk_strategy,
             fixed_chunk_size=self.config.fixed_chunk_size,
             fixed_chunk_overlap=self.config.fixed_chunk_overlap,
+            semantic_embedding_model=self.config.semantic_embedding_model,
+            semantic_similarity_threshold=self.config.semantic_similarity_threshold,
+            semantic_max_chunk_size=self.config.semantic_max_chunk_size,
         )
         self.parents = loader.load_parent_documents()
         self.chunks = loader.split_documents(self.parents)
@@ -552,6 +558,38 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
             f"{summary['retriever']} | {summary['answer_accuracy_proxy']:.3f} | {summary['hit_at_5']:.3f} | "
             f"{summary['citation_accuracy']:.3f} | {summary['refusal_accuracy']:.3f} | {summary['latency_p95_ms']:.1f} | "
             f"{config['description']} |"
+        )
+
+    chunking_rows = []
+    chunking_targets = [
+        ("V2", "Fixed window", "粗粒度窗口召回强，但引用边界弱。"),
+        ("V2R", "Recursive character", "通用递归分块提升答案关键词覆盖，但 citation 不适合制度条款溯源。"),
+        ("V6-bge-small", "Header/article-aware", "制度结构分块的引用准确率最高，适合政策问答的可追溯要求。"),
+        ("V6-semantic", "Semantic chunk", "语义合并略提升答案覆盖，citation 与结构分块持平，但引入额外 embedding 分块成本。"),
+    ]
+    by_id = {result["config"]["id"]: result for result in completed}
+    for config_id, label, finding in chunking_targets:
+        result = by_id.get(config_id)
+        if not result:
+            continue
+        summary = result["summary"]
+        chunking_rows.append(
+            f"| {label} | {config_id} `{summary['name']}` | {summary['chunks']} | "
+            f"{summary['answer_accuracy_proxy']:.3f} | {summary['hit_at_5']:.3f} | "
+            f"{summary['citation_accuracy']:.3f} | {finding} |"
+        )
+    if chunking_rows:
+        lines.extend(
+            [
+                "",
+                "## Chunking Strategy Findings",
+                "",
+                "| Chunk Strategy | Representative Config | Chunks | Answer Acc. | Hit@5 | Citation | Finding |",
+                "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+                *chunking_rows,
+                "",
+                "Conclusion: recursive chunking is valuable as a generic fallback and improves broad recall, but enterprise policy QA prioritizes traceable citations. The deployed strategy remains header/article-aware chunking with bge-small hybrid retrieval; semantic chunking is a credible enhancement candidate when answer completeness matters more than strict article-level citation.",
+            ]
         )
 
     lines.extend(

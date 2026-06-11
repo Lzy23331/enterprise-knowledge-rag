@@ -552,13 +552,15 @@ List[Document]
 PolicyDocumentLoader
 ```
 
-支持三种分块策略：
+支持五种分块策略：
 
 | 策略 | 用途 |
 | --- | --- |
 | `whole_document` | V1 baseline，整篇文档作为一个 chunk |
 | `fixed_window` | V2 baseline，固定长度滑窗 |
+| `recursive_character` | V2R/V4-recursive/V6-recursive，按段落、换行、句号、分号、逗号等层级递归切分 |
 | `markdown_headers` | 主策略，对 Markdown 用标题分块，对 PDF 用正式章条分块 |
+| `semantic` | V3S/V4-semantic/V6-semantic，先按结构单元切，再用 bge-small 合并相邻语义相近单元 |
 
 Markdown 分块识别：
 
@@ -612,6 +614,52 @@ PDF chunk 会维护 `section_path`、`section_type`、`chapter_no`、`article_no
 | `scenario_notes` | 典型场景与处理口径 |
 | `control_matrix` | 监督检查矩阵 |
 | `explanation` | 解释权归属 |
+
+#### 递归字符分块
+
+`recursive_character` 是 LangChain 里很常见的通用分块思路。本项目实现了项目内版本，递归分隔符顺序是：
+
+```text
+空行 -> 换行 -> 句号 -> 分号 -> 逗号 -> 空格 -> 单字符兜底
+```
+
+它比固定窗口更自然，因为会优先沿段落和句子边界切，不会机械地每 900 个字符切一刀。实验里它对应：
+
+```text
+V2R bm25_recursive_character_chunk
+V4-recursive vector_bge_small_recursive_faiss
+V6-recursive hybrid_bge_small_recursive_guarded
+```
+
+#### 语义分块
+
+`semantic` 的流程是：
+
+```text
+先按 Markdown 标题 / PDF 章条切成基础单元
+  ↓
+用 BAAI/bge-small-zh-v1.5 对每个基础单元编码
+  ↓
+计算相邻单元 cosine similarity
+  ↓
+相似度高于阈值且合并后不超过最大长度时合并
+```
+
+当前默认参数：
+
+```text
+semantic_similarity_threshold = 0.72
+semantic_max_chunk_size = 1200
+semantic_embedding_model = BAAI/bge-small-zh-v1.5
+```
+
+它对应：
+
+```text
+V3S bm25_semantic_chunk
+V4-semantic vector_bge_small_semantic_faiss
+V6-semantic hybrid_bge_small_semantic_guarded
+```
 
 ### 4.5 `indexing.py`
 
@@ -849,15 +897,21 @@ experiments/
 | V0 | llm_direct_no_retrieval | 0.000 | 0.000 | 0.074 | 0.000 |
 | V1 | keyword_whole_document | 0.382 | 0.997 | 0.188 | 0.042 |
 | V2 | bm25_fixed_window | 0.508 | 1.000 | 0.458 | 0.042 |
+| V2R | bm25_recursive_character_chunk | 0.553 | 0.983 | 0.474 | 0.083 |
 | V3 | bm25_header_chunk | 0.416 | 0.973 | 0.794 | 0.042 |
+| V3S | bm25_semantic_chunk | 0.386 | 0.973 | 0.797 | 0.042 |
 | V4-local | vector_local_hashing_numpy | 0.221 | 0.783 | 0.332 | 0.000 |
 | V4-bge-small | vector_bge_small_zh_faiss | 0.363 | 0.883 | 0.386 | 0.000 |
 | V4-bge-base | vector_bge_base_zh_faiss | 0.388 | 0.883 | 0.417 | 0.000 |
 | V4-e5 | vector_multilingual_e5_faiss | 0.362 | 0.847 | 0.406 | 0.000 |
+| V4-recursive | vector_bge_small_recursive_faiss | 0.500 | 0.943 | 0.343 | 0.000 |
+| V4-semantic | vector_bge_small_semantic_faiss | 0.343 | 0.870 | 0.376 | 0.000 |
 | V6-local | hybrid_rrf_with_refusal_gate | 0.440 | 0.903 | 0.901 | 1.000 |
 | V6-bge-small | hybrid_bge_small_faiss_guarded | 0.476 | 0.903 | 0.901 | 1.000 |
 | V6-bge-base | hybrid_bge_base_faiss_guarded | 0.475 | 0.903 | 0.901 | 1.000 |
 | V6-e5 | hybrid_multilingual_e5_faiss_guarded | 0.469 | 0.903 | 0.901 | 1.000 |
+| V6-recursive | hybrid_bge_small_recursive_guarded | 0.565 | 0.963 | 0.531 | 1.000 |
+| V6-semantic | hybrid_bge_small_semantic_guarded | 0.479 | 0.903 | 0.901 | 1.000 |
 | V7 | query_rewrite_metadata_guarded | 0.445 | 0.900 | 0.898 | 1.000 |
 
 最终选择：
@@ -872,6 +926,12 @@ BAAI/bge-small-zh-v1.5 + FAISS + BM25 + RRF + 低置信拒答
 - bge-small、bge-base、e5 在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平。
 - bge-small 的 p95 延迟约 29.2 ms，明显低于 bge-base 的 61.4 ms。
 - e5 的 Answer Accuracy Proxy 低于 bge 系列，因此作为多语言备选，不作为中文制度主链路。
+
+分块策略结论：
+
+- `recursive_character` 的 V6-recursive 在 Answer Accuracy Proxy 和 Hit@5 上最高，但 Citation Accuracy 只有 0.531，说明它更擅长宽召回和答案覆盖，不适合制度问答里严格的条款级溯源。
+- `semantic` 的 V6-semantic 与结构分块在 Hit@5、Citation Accuracy、Refusal Accuracy 上持平，Answer Accuracy Proxy 略高，但分块阶段需要额外 embedding 计算。
+- `markdown_headers` / PDF 章条结构分块仍是部署主策略，因为 Citation Accuracy 达到 0.901，更符合企业制度问答“答案必须可追溯”的业务要求。
 
 ### 6.4 full 实验如何保持稳定
 
