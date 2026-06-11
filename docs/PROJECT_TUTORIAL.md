@@ -663,23 +663,126 @@ V6-semantic hybrid_bge_small_semantic_guarded
 
 ### 4.5 `indexing.py`
 
-负责 embedding 和向量索引。
+负责 embedding、向量索引构建和向量检索后端。
 
-支持：
+当前项目要区分两个概念：
 
-- `local-hashing`：轻量可复现 baseline，不是真实语义模型。
-- `BAAI/bge-small-zh-v1.5`：中文场景常用轻量 embedding。
-- `BAAI/bge-base-zh-v1.5`：更大模型，质量可能更高但成本更高。
-- `intfloat/multilingual-e5-small`：多语言 embedding 对比。
+```text
+向量检索库：FAISS / NumPy
+向量数据库服务：Milvus / Chroma / PGVector / Elasticsearch 等
+```
 
-向量后端：
+本项目当前没有接入独立向量数据库服务，主链路使用的是本地 FAISS 向量索引；NumPy 只作为轻量 baseline 和 fallback 实验后端。
 
-- NumPy：轻量、零服务依赖，适合 quick 实验和 Streamlit。
-- FAISS：本地向量检索库，适合 full 实验和更真实的向量体验。
+#### 当前真实使用的向量后端
+
+| 后端 | 使用位置 | 作用 |
+| --- | --- | --- |
+| `FAISS` | full 实验和最终主链路 | 本地高性能向量检索库 |
+| `NumPy` | quick baseline / local-hashing 实验 | 零服务依赖的矩阵乘法检索 |
+
+代码里对应：
+
+```python
+if faiss is not None and len(vectors):
+    self.index = faiss.IndexFlatIP(vectors.shape[1])
+    self.index.add(vectors)
+```
+
+如果 FAISS 可用，`VectorStore` 会创建 `faiss.IndexFlatIP`；如果实验配置指定 `vector_backend=numpy`，则把 `vectorstore.index` 置空，检索时走：
+
+```python
+scores = self.vectorstore.vectors @ query_vector
+ranked_indices = np.argsort(scores)[::-1]
+```
+
+这里的 `IndexFlatIP` 表示 flat inner product search，也就是不做近似压缩、不做聚类，直接对所有向量做精确内积检索。由于当前 sentence-transformers 调用里设置了 `normalize_embeddings=True`，向量已经归一化，所以 inner product 基本等价于 cosine similarity。
+
+#### 为什么 FAISS 适合当前项目
+
+当前知识库规模是：
+
+```text
+制度文档：45 份
+chunk：833 个
+评估样本：324 条
+```
+
+这个规模下，FAISS 的优势很明显：
+
+- 不需要单独启动数据库服务。
+- 可以直接在本地和 Streamlit demo 中运行。
+- 安装 `faiss-cpu` 后即可使用。
+- 对几百到几千个 chunk 来说，检索足够快。
+- 和现有 `sentence-transformers + NumPy vectors` 代码衔接简单。
+- 方便在实验中固定其他变量，只比较 embedding、chunk 和检索策略。
+
+当前最终主链路是：
+
+```text
+BAAI/bge-small-zh-v1.5 + FAISS + BM25 + RRF + 低置信拒答
+```
+
+对应实验：
+
+```text
+V6-bge-small hybrid_bge_small_faiss_guarded
+```
+
+#### NumPy 在项目里的定位
+
+NumPy 不是最终向量库选择，而是轻量 baseline：
+
+- `local-hashing + NumPy` 可以在没有真实 embedding 模型时快速跑通链路。
+- 适合 quick 实验和单元回归。
+- 可以验证“向量召回”这个流程是否工作。
+- 不能作为最终效果结论，因为 `local-hashing` 不是真实语义 embedding。
 
 严谨口径：
 
-> `local-hashing` 只是 fallback baseline。简历里如果写 embedding 模型选型，必须基于 `run_experiments.py --full` 成功跑出的真实模型对比。
+> `local-hashing + NumPy` 是工程 fallback 和可复现 baseline；简历和面试里讲最终 embedding/向量检索效果时，应以 `run_experiments.py --full` 中真实 sentence-transformers + FAISS 的结果为准。
+
+#### 有没有必要接入其他向量数据库
+
+目前暂时不建议把 Milvus、PGVector、Elasticsearch 或 Chroma 接入主链路。原因不是这些工具不好，而是当前项目目标和数据规模还不需要。
+
+| 方案 | 更适合的场景 | 当前项目是否需要 |
+| --- | --- | --- |
+| FAISS | 本地实验、离线评估、中小规模向量检索、简历项目 demo | 需要，当前主链路 |
+| NumPy | baseline、教学、fallback、无依赖快速回归 | 需要，作为 baseline |
+| Chroma | LangChain 原型、本地持久化、希望有 collection/metadata API | 可选增强，不是必须 |
+| Milvus | 百万级向量、分布式、高并发、多租户生产服务 | 当前过重 |
+| PGVector | 企业已有 PostgreSQL，希望结构化数据和向量统一存储 | 当前没有数据库后端 |
+| Elasticsearch | 企业已有 ES，想结合 BM25、过滤和向量检索 | 可作为企业选型，不适合本地简历 demo 主链路 |
+
+如果以后要继续做“向量数据库优化”，推荐顺序是：
+
+1. 保留 FAISS 作为默认主链路。
+2. 增加 Chroma 作为本地持久化向量库对比，因为它和 LangChain 生态贴近，部署成本低。
+3. 只在文档中分析 Milvus / PGVector / Elasticsearch 的业务选型，不强行本地部署。
+4. 如果项目升级成后端服务，再考虑 PGVector 或 Elasticsearch，因为它们更贴近企业系统集成。
+
+#### 面试中怎么回答向量库选型
+
+可以这样讲：
+
+> 当前项目主链路使用 FAISS，不是独立向量数据库服务。原因是项目规模是 45 份制度、833 个 chunk，本地 FAISS 已经能提供足够快的精确向量检索，而且部署简单、适合 Streamlit demo 和离线评估。NumPy 只作为 quick baseline，用来保证没有完整向量依赖时也能回归链路。我没有强行接入 Milvus 或 PGVector，因为那会引入额外服务部署和数据迁移复杂度，但对当前规模的召回效果帮助有限。
+
+如果面试官问“为什么不用 Milvus”，可以回答：
+
+> Milvus 更适合百万级向量、分布式部署、高并发和多租户场景。当前项目只有几百个 chunk，用 Milvus 会让部署复杂度超过收益，所以我把它作为企业生产扩展选项，而不是当前 demo 主链路。
+
+如果面试官问“为什么不用 PGVector”，可以回答：
+
+> PGVector 适合企业已有 PostgreSQL，并且希望把制度 metadata、权限、审计和向量放在同一个数据库里。当前项目没有后端数据库，也没有多用户权限系统，所以先用 FAISS 保持本地可复现。如果后续做成企业内部服务，PGVector 是很自然的升级方向。
+
+如果面试官问“为什么不用 Elasticsearch”，可以回答：
+
+> Elasticsearch 的优势是 BM25、结构化过滤和生产级搜索生态。如果企业原本就有 ES，把制度搜索放进去很合理。但本项目已经自己实现了 BM25 + 向量 + RRF，且数据规模很小，所以没有为了简历 demo 引入一套 ES 服务。
+
+如果面试官问“为什么不用 Chroma”，可以回答：
+
+> Chroma 很适合 LangChain 原型和本地持久化向量库，确实可以作为下一步轻量对比。但当前项目的重点是 RAG 评估闭环、分块、embedding 和混合检索策略，FAISS 已经能满足主链路；Chroma 可以作为增强实验，而不是必须项。
 
 ### 4.6 `retrieval.py`
 
@@ -1441,3 +1544,8 @@ Embedding 选型可以单独这样讲：
 | 为什么 bge-m3 Answer 更高还不用？ | 它答案覆盖略好，但 Citation 略低。制度问答更重视条款级引用可信度，所以 bge-m3 暂作长文本增强候选。 |
 | gte-Qwen2 失败会不会影响项目说服力？ | 不会，反而说明实验严谨。它下载后 encode 失败，所以标记 skipped，没有把 fallback 结果伪装成真实结论。 |
 | 最终选择 bge-small 的一句话原因？ | 它不是单项最强，但在 Answer、Citation、Refusal、p95 延迟和工程稳定性之间最均衡。 |
+| 当前用的是什么向量库？ | 主链路用 FAISS，本地 `IndexFlatIP` 精确向量检索；NumPy 只作为 quick baseline 和 fallback 实验后端。 |
+| 为什么不用 Milvus？ | Milvus 适合百万级向量、分布式和高并发，当前只有 833 个 chunk，引入 Milvus 会增加部署复杂度但收益有限。 |
+| 为什么不用 PGVector？ | PGVector 适合已有 PostgreSQL 和数据库权限/审计体系的企业应用；当前项目没有后端数据库，所以 FAISS 更轻、更适合本地复现。 |
+| 为什么不用 Elasticsearch？ | ES 适合已有搜索基础设施的企业，但本项目已实现 BM25 + 向量 + RRF，数据规模也小，不需要额外部署 ES。 |
+| 后续如果要优化向量库怎么办？ | 优先保留 FAISS 主链路，可轻量增加 Chroma 做本地持久化对比；Milvus/PGVector/ES 放在生产化选型分析里。 |
