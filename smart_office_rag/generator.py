@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Iterable, List, Optional
 
 from openai import OpenAI
@@ -75,6 +76,11 @@ class AnswerGenerator:
 
         context = self._format_context(docs)
         prompt = ANSWER_TEMPLATE.format(question=question, context=context)
+        prompt += (
+            "\n\n证据判定规则：如果检索资料中已经出现直接回答用户问题的时限、金额、条件、步骤或材料清单，"
+            "应优先基于该资料给出结论；不要因为资料没有覆盖所有可能例外情况，就回答没有明确依据。"
+            "可以在注意事项中说明例外或需进一步确认的边界。"
+        )
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -140,6 +146,36 @@ class AnswerGenerator:
         return False
 
     @staticmethod
+    def _direct_evidence_sentence(question: str, docs: List[Document]) -> str:
+        time_question_terms = ("多久", "提前", "时限", "SLA", "几天", "什么时候", "来得及")
+        if not any(term in question for term in time_question_terms):
+            return ""
+
+        evidence_terms = ("提前", "工作日", "自然日", "时限", "SLA", "至少", "超过", "标准时限")
+        best_sentence = ""
+        best_score = 0
+        for doc in docs[:5]:
+            cleaned_text = " ".join(
+                line.strip()
+                for line in doc.page_content.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            )
+            sentences = re.split(r"(?<=[。！？；;])\s*", cleaned_text)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                score = sum(1 for term in evidence_terms if term in sentence)
+                if "年假" in question and "年假" in sentence:
+                    score += 2
+                if "请假" in question and "请假" in sentence:
+                    score += 1
+                if score > best_score:
+                    best_score = score
+                    best_sentence = sentence
+        return best_sentence if best_score >= 2 else ""
+
+    @staticmethod
     def generate_no_evidence(question: str, docs: List[Document], reason: str = "no_evidence") -> str:
         reason_text = {
             "out_of_scope": "问题不属于当前模拟企业制度知识库覆盖范围。",
@@ -184,7 +220,11 @@ class AnswerGenerator:
         )
         snippets = []
         for doc in answer_docs[:3]:
-            text = " ".join(line.strip() for line in doc.page_content.splitlines() if line.strip())
+            text = " ".join(
+                line.strip()
+                for line in doc.page_content.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            )
             snippets.append(text[:360])
 
         citations = []
@@ -193,10 +233,18 @@ class AnswerGenerator:
             if citation not in citations:
                 citations.append(citation)
 
+        direct_evidence = AnswerGenerator._direct_evidence_sentence(question, answer_docs)
+        if direct_evidence:
+            conclusion = f"根据《{primary.metadata.get('title', '未知文档')}》，{direct_evidence}"
+        else:
+            conclusion = (
+                f"根据知识库，最相关的制度是《{primary.metadata.get('title', '未知文档')}》，"
+                f"问题主要涉及{primary.metadata.get('process_type', '相关流程')}。"
+            )
+
         return (
             "结论：\n"
-            f"根据知识库，最相关的制度是《{primary.metadata.get('title', '未知文档')}》，"
-            f"问题主要涉及{primary.metadata.get('process_type', '相关流程')}。\n\n"
+            f"{conclusion}\n\n"
             "办理/处理步骤：\n"
             + "\n".join(f"{index + 1}. {snippet}" for index, snippet in enumerate(snippets[:3]))
             + "\n\n所需材料：\n"

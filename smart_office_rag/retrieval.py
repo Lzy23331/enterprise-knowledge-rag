@@ -8,6 +8,79 @@ from rank_bm25 import BM25Okapi
 from .types import Document
 
 
+class QueryExpander:
+    COLLOQUIAL_MARKERS = (
+        "放年假",
+        "休年假",
+        "放假",
+        "咋",
+        "怎么弄",
+        "咋办",
+        "能不能",
+        "可以吗",
+        "行不行",
+        "来得及",
+        "打款",
+        "盖章",
+        "系统进不去",
+        "登录不了",
+        "客户名单",
+    )
+
+    DOMAIN_EXPANSIONS = (
+        (
+            ("年假", "休假", "放假", "请假", "假期"),
+            ("员工请假与休假管理制度", "请假申请", "年假申请", "审批 SLA", "提前", "工作日"),
+        ),
+        (
+            ("报销", "发票", "打款", "付款", "费用"),
+            ("费用报销", "报销申请", "财务审批", "所需材料", "发票", "付款"),
+        ),
+        (
+            ("VPN", "远程", "账号", "权限", "系统进不去", "登录不了"),
+            ("IT 权限申请", "VPN 权限", "账号权限", "信息安全", "审批流程"),
+        ),
+        (
+            ("合同", "法务", "盖章", "用印", "供应商"),
+            ("合同评审", "法务审核", "采购流程", "印章审批", "归档"),
+        ),
+        (
+            ("数据", "导出", "客户名单", "外发", "脱敏"),
+            ("数据导出", "客户数据", "信息安全", "审批", "留痕", "高风险"),
+        ),
+    )
+
+    INTENT_EXPANSIONS = (
+        (("提前", "多久", "几天", "什么时候", "来得及"), ("时限", "审批 SLA", "工作日", "至少", "超过")),
+        (("怎么办", "怎么弄", "怎么申请", "咋办", "在哪"), ("办理步骤", "流程", "系统提交", "申请")),
+        (("要什么", "哪些材料", "材料", "资料"), ("所需材料", "附件", "证明", "表单")),
+        (("能不能", "可以吗", "行不行", "是否可以"), ("适用范围", "注意事项", "例外流程", "审批")),
+    )
+
+    @classmethod
+    def expand(cls, query: str) -> str:
+        if not cls.should_expand(query):
+            return query
+        additions: List[str] = []
+        for triggers, expansions in cls.DOMAIN_EXPANSIONS + cls.INTENT_EXPANSIONS:
+            if any(trigger in query for trigger in triggers):
+                additions.extend(term for term in expansions if term not in query)
+        if not additions:
+            return query
+        deduped = list(dict.fromkeys(additions))
+        return f"{query} {' '.join(deduped)}"
+
+    @classmethod
+    def should_expand(cls, query: str) -> bool:
+        if any(marker in query for marker in cls.COLLOQUIAL_MARKERS):
+            return True
+        chinese_chars = re.findall(r"[\u4e00-\u9fff]", query)
+        asks_permission = any(term in query for term in ("可以", "能", "行不行"))
+        asks_time = any(term in query for term in ("几天", "多久", "什么时候", "提前"))
+        domain_hint = any(term in query for term in ("年假", "报销", "权限", "合同", "数据"))
+        return len(chinese_chars) <= 14 and domain_hint and (asks_permission or asks_time)
+
+
 class HybridRetriever:
     def __init__(
         self,
@@ -33,21 +106,35 @@ class HybridRetriever:
         filters: Optional[Dict[str, str]] = None,
     ) -> List[Document]:
         k = top_k or self.default_k
+        expanded_query = QueryExpander.expand(query)
         vector_docs = self.vector_retriever.invoke(query)
         bm25_docs = self.bm25_retriever.invoke(query)
+        ranked_lists: List[Iterable[Document]] = [vector_docs, bm25_docs]
+        if expanded_query != query:
+            expanded_vector_docs = self.vector_retriever.invoke(expanded_query)
+            expanded_bm25_docs = self.bm25_retriever.invoke(expanded_query)
+            ranked_lists.extend([expanded_vector_docs, expanded_bm25_docs])
+            for rank, doc in enumerate(expanded_vector_docs, 1):
+                doc.metadata["expanded_vector_rank"] = rank
+                doc.metadata["expanded_query"] = expanded_query
+            for rank, doc in enumerate(expanded_bm25_docs, 1):
+                doc.metadata["expanded_bm25_rank"] = rank
+                doc.metadata["expanded_query"] = expanded_query
         for rank, doc in enumerate(vector_docs, 1):
             doc.metadata["vector_rank"] = rank
+            doc.metadata["expanded_query"] = expanded_query
         for rank, doc in enumerate(bm25_docs, 1):
             doc.metadata["bm25_rank"] = rank
-        reranked = self._rrf(vector_docs, bm25_docs)
+            doc.metadata["expanded_query"] = expanded_query
+        reranked = self._rrf(*ranked_lists)
         if filters:
             reranked = [doc for doc in reranked if self._matches_filters(doc, filters)]
-        ordered = self._doc_aware_order(query, reranked)
+        ordered = self._doc_aware_order(expanded_query, reranked)
         if self.structured_boost:
-            ordered = self._structured_order(query, ordered)
+            ordered = self._structured_order(expanded_query, ordered)
         if self.sentence_window_size > 0:
             ordered = self._expand_sentence_window(ordered)
-        return self._expand_primary_doc_context(query, ordered)[:k]
+        return self._expand_primary_doc_context(expanded_query, ordered)[:k]
 
     @staticmethod
     def _matches_filters(doc: Document, filters: Dict[str, str]) -> bool:
