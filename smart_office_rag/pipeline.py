@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 from .config import DEFAULT_CONFIG, RAGConfig
 from .documents import PolicyDocumentLoader
+from .formatting import AnswerFormatter
 from .generator import AnswerGenerator
 from .indexing import VectorIndex
 from .retrieval import HybridRetriever
@@ -22,6 +23,7 @@ class RAGResponse:
     latency_ms: float
     refused: bool
     refusal_reason: str = ""
+    formatted_answer: Optional[Dict[str, object]] = None
 
 
 class EnterpriseKnowledgeRAG:
@@ -114,6 +116,7 @@ class EnterpriseKnowledgeRAG:
         }
         if self._is_out_of_scope(question):
             answer = self.generator.generate_no_evidence(question, [], reason="out_of_scope")
+            formatted_answer = AnswerFormatter.build(question, answer, [], [], True, "out_of_scope")
             return RAGResponse(
                 answer=answer,
                 sources=[],
@@ -122,30 +125,43 @@ class EnterpriseKnowledgeRAG:
                 latency_ms=(time.perf_counter() - started) * 1000,
                 refused=True,
                 refusal_reason="问题不属于当前企业制度知识库覆盖范围。",
+                formatted_answer=formatted_answer,
             )
 
         chunks = self.retriever.search(question, top_k=self.config.top_k, filters=filters)
         if self._is_low_confidence(question, chunks):
             answer = self.generator.generate_no_evidence(question, chunks[:3], reason="low_confidence")
+            sources = self._build_sources(chunks[:3])
+            formatted_answer = AnswerFormatter.build(question, answer, chunks[:3], sources, True, "low_confidence")
             return RAGResponse(
                 answer=answer,
-                sources=self._build_sources(chunks[:3]),
+                sources=sources,
                 chunks=chunks,
                 retrieval_trace={**trace, "refusal_reason": "low_confidence", "retrieved_chunks": len(chunks)},
                 latency_ms=(time.perf_counter() - started) * 1000,
                 refused=True,
                 refusal_reason="最高相关片段与问题重合度不足，系统选择拒答以避免编造制度。",
+                formatted_answer=formatted_answer,
             )
 
         answer = self.generator.generate(question, chunks)
         source_chunks = self._answer_source_chunks(question, chunks)
+        sources = self._build_sources(source_chunks)
+        formatted_answer = AnswerFormatter.build(question, answer, source_chunks, sources, False)
         return RAGResponse(
             answer=answer,
-            sources=self._build_sources(source_chunks),
+            sources=sources,
             chunks=chunks,
-            retrieval_trace={**trace, "retrieved_chunks": len(chunks), "refusal_reason": ""},
+            retrieval_trace={
+                **trace,
+                "retrieved_chunks": len(chunks),
+                "refusal_reason": "",
+                "answer_type": formatted_answer.get("answer_type"),
+                "answer_confidence": formatted_answer.get("confidence"),
+            },
             latency_ms=(time.perf_counter() - started) * 1000,
             refused=False,
+            formatted_answer=formatted_answer,
         )
 
     def _answer_source_chunks(self, question: str, chunks: List[Document]) -> List[Document]:

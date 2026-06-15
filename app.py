@@ -161,6 +161,47 @@ def render_chunk(index: int, doc) -> None:
         )
 
 
+def render_structured_answer(payload: dict, fallback: str) -> None:
+    if not payload:
+        st.markdown(fallback)
+        return
+
+    conclusion = payload.get("conclusion")
+    if conclusion:
+        st.markdown(f"**结论**\n\n{conclusion}")
+
+    highlights = payload.get("highlights") or []
+    if highlights:
+        cols = st.columns(min(len(highlights), 4))
+        for index, item in enumerate(highlights[:4]):
+            cols[index].metric("关键信息", item)
+
+    for label, key in (
+        ("办理/处理步骤", "steps"),
+        ("所需材料", "materials"),
+        ("注意事项", "notes"),
+    ):
+        items = payload.get(key) or []
+        if not items:
+            continue
+        st.markdown(f"**{label}**")
+        for index, item in enumerate(items, 1):
+            prefix = f"{index}." if key == "steps" else "-"
+            st.markdown(f"{prefix} {item}")
+
+    citations = payload.get("citations") or []
+    if citations:
+        st.markdown("**引用来源**")
+        for source in citations:
+            if isinstance(source, dict):
+                citation = source.get("citation", "")
+                doc_id = source.get("doc_id", "")
+                suffix = f" | {doc_id}" if doc_id else ""
+                st.markdown(f"- {citation}{suffix}")
+            else:
+                st.markdown(f"- {source}")
+
+
 def main() -> None:
     st.title("SmartOfficeRAG：企业内部制度知识问答系统")
     st.caption("面向 HR、财务、IT、安全、法务、采购、行政、审计等制度咨询场景的可评估 RAG Demo")
@@ -227,7 +268,7 @@ def main() -> None:
         answer_col, trace_col = st.columns([2, 1])
         with answer_col:
             st.subheader("回答")
-            st.markdown(response.answer)
+            render_structured_answer(response.formatted_answer or {}, response.answer)
 
         with trace_col:
             st.subheader("链路状态")

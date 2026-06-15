@@ -14,7 +14,7 @@
 - Refusal Accuracy: 1.000
 - Faithfulness Proxy: 0.845
 - Answer Correctness Proxy: 0.477
-- Latency p50 / p95: 53.2 ms / 82.0 ms
+- Latency p50 / p95: 45.5 ms / 62.7 ms
 
 ## Metrics Notes
 
@@ -27,9 +27,9 @@
 | Strategy | Hit@5 | MRR@5 | Citation Acc. | Refusal Acc. | p50 Latency | p95 Latency |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | llm_direct | 0.000 | 0.000 | 0.078 | 0.000 | 0.0 ms | 0.0 ms |
-| bm25_only | 0.941 | 0.886 | 0.794 | 1.000 | 14.8 ms | 26.5 ms |
-| vector_only | 0.874 | 0.732 | 0.467 | 1.000 | 19.4 ms | 30.7 ms |
-| hybrid_rrf | 0.832 | 0.832 | 0.845 | 1.000 | 53.2 ms | 82.0 ms |
+| bm25_only | 0.941 | 0.886 | 0.794 | 1.000 | 15.6 ms | 28.3 ms |
+| vector_only | 0.874 | 0.732 | 0.467 | 1.000 | 18.9 ms | 26.9 ms |
+| hybrid_rrf | 0.832 | 0.832 | 0.845 | 1.000 | 45.5 ms | 62.7 ms |
 
 ## Why Hybrid RAG
 
