@@ -268,7 +268,7 @@ def main() -> None:
         answer_col, trace_col = st.columns([2, 1])
         with answer_col:
             st.subheader("回答")
-            render_structured_answer(response.formatted_answer or {}, response.answer)
+            render_structured_answer(getattr(response, "formatted_answer", None) or {}, response.answer)
 
         with trace_col:
             st.subheader("链路状态")
