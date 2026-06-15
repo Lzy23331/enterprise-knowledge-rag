@@ -82,7 +82,14 @@ class AnswerGenerator:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
-            return response.choices[0].message.content or self._extractive_answer(question, docs)
+            content = response.choices[0].message.content or ""
+            if self._looks_like_false_no_evidence(content, question, docs):
+                return (
+                    self._extractive_answer(question, docs)
+                    + "\n\n"
+                    + "> 已检测到检索片段包含直接制度依据，自动使用本地抽取式回答替代保守拒答。"
+                )
+            return content or self._extractive_answer(question, docs)
         except Exception as exc:
             return (
                 self._extractive_answer(question, docs)
@@ -111,6 +118,26 @@ class AnswerGenerator:
                 )
             )
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _looks_like_false_no_evidence(answer: str, question: str, docs: List[Document]) -> bool:
+        if not answer or not docs:
+            return False
+        no_evidence_terms = (
+            "没有检索到明确依据",
+            "没有明确依据",
+            "未检索到明确依据",
+            "无法形成明确依据",
+        )
+        if not any(term in answer for term in no_evidence_terms):
+            return False
+
+        question_terms = ("多久", "提前", "时限", "SLA", "几天", "工作日")
+        evidence_terms = ("提前", "工作日", "自然日", "时限", "SLA", "至少", "超过")
+        if any(term in question for term in question_terms):
+            evidence_text = "\n".join(doc.page_content for doc in docs[:5])
+            return any(term in evidence_text for term in evidence_terms)
+        return False
 
     @staticmethod
     def generate_no_evidence(question: str, docs: List[Document], reason: str = "no_evidence") -> str:
