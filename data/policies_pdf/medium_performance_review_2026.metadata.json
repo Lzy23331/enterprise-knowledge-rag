@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-MED-PERFORMANCE-2026",
+  "title": "绩效考核与申诉管理制度",
+  "department": "HR",
+  "process_type": "performance",
+  "risk_level": "medium",
+  "owner": "人力资源部",
+  "system": "企业流程中心",
+  "form_id": "FORM-MED-PERFORMANCE-2026",
+  "approval_sla": "三个工作日",
+  "version": "V2.0",
+  "effective_date": "2026-03-01",
+  "source_type": "pdf",
+  "dataset_layer": "medium",
+  "effective_from": "2026-03-01",
+  "effective_to": "",
+  "supersedes": "",
+  "priority": "40",
+  "conflict_group": "",
+  "related_doc_ids": "PDF-HR-PERF-2026"
+}

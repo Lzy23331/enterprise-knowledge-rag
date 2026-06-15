@@ -2,348 +2,88 @@
 
 ## Iteration Summary
 
-- Selected full-candidate version: V6-bge-small `hybrid_bge_small_faiss_guarded`
-- Quality leader in full candidate pool: V9-qwen3-0.6b `hybrid_qwen3_embedding_06b_guarded`
-- Answer Accuracy Proxy: 0.000 -> 0.476
-- Hit@5: 0.000 -> 0.903
-- Citation Accuracy: 0.074 -> 0.901
-- Refusal Accuracy: 0.000 -> 1.000
+- Selected full-candidate version: V13-hard-query-construction `layer_hard_v13_query_construction`
+- Quality leader in full candidate pool: V13-hard-query-construction `layer_hard_v13_query_construction`
+- Answer Accuracy Proxy: 0.468 -> 0.468
+- Hit@5: 0.676 -> 0.676
+- Citation Accuracy: 0.698 -> 0.698
+- Refusal Accuracy: 1.000 -> 1.000
 - Selection rule: compare completed configs with a weighted quality score; 本次 full 实验已完成真实 embedding 配置；如有模型 skipped，应先修复模型缓存或网络后再引用结论。
 
 ## Experiment Matrix
 
 | Version | Strategy | Chunk | Embedding | Retriever | Answer Acc. | Hit@5 | Citation | Refusal | p95 ms | Notes |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| V0 | llm_direct_no_retrieval | none | none | llm_direct | 0.000 | 0.000 | 0.074 | 0.000 | 0.0 | 无知识库直答基线，用于暴露不可追溯和知识库外问题无法拒答的问题。 |
-| V10-sentence-window-hybrid | hybrid_bge_small_sentence_window_guarded | sentence_window | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.398 | 0.907 | 0.904 | 1.000 | 66.2 | 句子窗口索引 + bge-small + BM25 + RRF + 低置信拒答，测试命中句子后回填邻句是否提升最终问答。 |
-| V10-sentence-window-vector | vector_bge_small_sentence_window_faiss | sentence_window | BAAI/bge-small-zh-v1.5 | vector_only | 0.294 | 0.833 | 0.393 | 0.000 | 17.7 | 句子窗口索引 + bge-small + FAISS，测试句子级 child chunk 的纯向量召回表现。 |
-| V11-structured-hybrid | structured_hybrid_bge_small_guarded | markdown_headers | BAAI/bge-small-zh-v1.5 | structured_hybrid_rrf | 0.487 | 0.880 | 0.880 | 1.000 | 46.8 | 结构化 metadata soft boost + bge-small + BM25 + RRF + 低置信拒答，测试部门、流程、风险和章节类型线索是否提升排序。 |
-| V12-sentence-structured-hybrid | sentence_structured_hybrid_bge_small_guarded | sentence_window | BAAI/bge-small-zh-v1.5 | structured_hybrid_rrf | 0.372 | 0.897 | 0.895 | 1.000 | 68.9 | 句子窗口索引 + 结构化 metadata soft boost + bge-small + BM25 + RRF + 低置信拒答，测试两类索引增强叠加效果。 |
-| V1 | keyword_whole_document | whole_document | none | keyword_only | 0.382 | 0.997 | 0.188 | 0.042 | 46.5 | 整文档粒度的关键词检索，验证最小知识库检索是否能命中文档。 |
-| V2 | bm25_fixed_window | fixed_window | none | bm25_only | 0.508 | 1.000 | 0.458 | 0.042 | 1.5 | 固定长度滑窗分块 + BM25，测试简单 chunk 策略对召回和引用的影响。 |
-| V2R | bm25_recursive_character_chunk | recursive_character | none | bm25_only | 0.553 | 0.983 | 0.474 | 0.083 | 2.1 | 递归字符分块 + BM25，对比固定窗口和制度结构分块的边界质量。 |
-| V3 | bm25_header_chunk | markdown_headers | none | bm25_only | 0.416 | 0.973 | 0.794 | 0.042 | 18.2 | Markdown 标题层级分块 + BM25，保留制度章节结构，提高引用可解释性。 |
-| V3S | bm25_semantic_chunk | semantic | none | bm25_only | 0.387 | 0.973 | 0.797 | 0.042 | 7.7 | 语义分块 + BM25，先用 bge-small 合并相邻语义单元，再测试关键词检索效果。 |
-| V4-bge-base | vector_bge_base_zh_faiss | markdown_headers | BAAI/bge-base-zh-v1.5 | vector_only | 0.388 | 0.883 | 0.417 | 0.000 | 75.1 | BAAI/bge-base-zh-v1.5 + FAISS，测试更大中文 embedding 的召回收益和成本。 |
-| V4-bge-small | vector_bge_small_zh_faiss | markdown_headers | BAAI/bge-small-zh-v1.5 | vector_only | 0.363 | 0.883 | 0.386 | 0.000 | 24.7 | BAAI/bge-small-zh-v1.5 + FAISS，测试中文轻量 embedding 的语义召回表现。 |
-| V4-e5 | vector_multilingual_e5_faiss | markdown_headers | intfloat/multilingual-e5-small | vector_only | 0.362 | 0.847 | 0.406 | 0.000 | 35.7 | intfloat/multilingual-e5-small + FAISS，测试多语言 embedding 在中文制度问答中的表现。 |
-| V4-recursive | vector_bge_small_recursive_faiss | recursive_character | BAAI/bge-small-zh-v1.5 | vector_only | 0.500 | 0.943 | 0.343 | 0.000 | 20.6 | 递归字符分块 + bge-small + FAISS，测试通用递归分块在纯向量召回中的表现。 |
-| V4-semantic | vector_bge_small_semantic_faiss | semantic | BAAI/bge-small-zh-v1.5 | vector_only | 0.343 | 0.870 | 0.376 | 0.000 | 22.9 | 语义分块 + bge-small + FAISS，测试 semantic chunking 对纯向量召回的影响。 |
-| V4 | vector_local_hashing_numpy | markdown_headers | local-hashing | vector_only | 0.221 | 0.783 | 0.332 | 0.000 | 0.3 | 本地 hashing embedding + NumPy 向量检索，用作可复现的轻量语义召回基线。 |
-| V5 | bm25_vector_rrf_numpy | markdown_headers | local-hashing | hybrid_rrf | 0.440 | 0.903 | 0.836 | 0.000 | 12.2 | BM25 + local hashing 向量召回 + RRF 融合，验证混合检索收益。 |
-| V6-bge-base | hybrid_bge_base_faiss_guarded | markdown_headers | BAAI/bge-base-zh-v1.5 | hybrid_rrf | 0.475 | 0.903 | 0.901 | 1.000 | 119.2 | BAAI/bge-base-zh-v1.5 + BM25 + RRF + 低置信拒答，测试更大中文 embedding 是否带来可观收益。 |
-| V6-bge-small | hybrid_bge_small_faiss_guarded | markdown_headers | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.476 | 0.903 | 0.901 | 1.000 | 57.5 | BAAI/bge-small-zh-v1.5 + BM25 + RRF + 低置信拒答，测试轻量中文 embedding 在最终链路中的表现。 |
-| V6-e5 | hybrid_multilingual_e5_faiss_guarded | markdown_headers | intfloat/multilingual-e5-small | hybrid_rrf | 0.469 | 0.903 | 0.901 | 1.000 | 74.9 | intfloat/multilingual-e5-small + BM25 + RRF + 低置信拒答，测试多语言 embedding 在中文制度问答中的可用性。 |
-| V6 | hybrid_rrf_with_refusal_gate | markdown_headers | local-hashing | hybrid_rrf | 0.440 | 0.903 | 0.901 | 1.000 | 14.4 | 混合检索 + 低置信拒答，用于降低知识库外问题误答。 |
-| V6-recursive | hybrid_bge_small_recursive_guarded | recursive_character | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.565 | 0.963 | 0.531 | 1.000 | 27.1 | 递归字符分块 + bge-small + BM25 + RRF + 低置信拒答，测试通用分块在最终链路中的可用性。 |
-| V6-semantic | hybrid_bge_small_semantic_guarded | semantic | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.479 | 0.903 | 0.901 | 1.000 | 25.8 | 语义分块 + bge-small + BM25 + RRF + 低置信拒答，测试 semantic chunking 在最终链路中的收益。 |
-| V7 | query_rewrite_metadata_guarded | markdown_headers | local-hashing | hybrid_rrf | 0.443 | 0.900 | 0.898 | 1.000 | 13.8 | 候选增强链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答，用于验证规则增强是否继续提升。 |
-| V8-bge-m3 | vector_bge_m3_faiss | markdown_headers | BAAI/bge-m3 | vector_only | 0.398 | 0.940 | 0.398 | 0.000 | 103.3 | BAAI/bge-m3 + FAISS，测试多语言、多粒度、长文本 embedding 在正式制度 PDF 与中文条款召回中的表现。 |
-| V8-gte-qwen2-1.5b | vector_gte_qwen2_15b_faiss | markdown_headers | Alibaba-NLP/gte-Qwen2-1.5B-instruct | vector_only | - | - | - | - | - | skipped: Embedding build failed: Alibaba-NLP/gte-Qwen2-1.5B-instruct; 'DynamicCache' object has no attribute 'get_usable_length' |
-| V8-qwen3-0.6b | vector_qwen3_embedding_06b_faiss | markdown_headers | Qwen/Qwen3-Embedding-0.6B | vector_only | 0.370 | 0.967 | 0.466 | 0.000 | 224.0 | Qwen3-Embedding-0.6B + FAISS，测试近期 MTEB/C-MTEB 强模型在企业制度纯向量召回中的表现。 |
-| V9-bge-m3 | hybrid_bge_m3_guarded | markdown_headers | BAAI/bge-m3 | hybrid_rrf | 0.484 | 0.900 | 0.898 | 1.000 | 115.0 | BAAI/bge-m3 + BM25 + RRF + 低置信拒答，验证多语言长文本 embedding 在最终制度问答链路中的收益。 |
-| V9-gte-qwen2-1.5b | hybrid_gte_qwen2_15b_guarded | markdown_headers | Alibaba-NLP/gte-Qwen2-1.5B-instruct | hybrid_rrf | - | - | - | - | - | skipped: Embedding build failed: Alibaba-NLP/gte-Qwen2-1.5B-instruct; 'DynamicCache' object has no attribute 'get_usable_length' |
-| V9-qwen3-0.6b | hybrid_qwen3_embedding_06b_guarded | markdown_headers | Qwen/Qwen3-Embedding-0.6B | hybrid_rrf | 0.472 | 0.910 | 0.907 | 1.000 | 226.9 | Qwen3-Embedding-0.6B + BM25 + RRF + 低置信拒答，验证榜单强模型在最终 RAG 链路中是否优于 bge-small。 |
+| V13-hard-query-construction | layer_hard_v13_query_construction | markdown_headers | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.468 | 0.676 | 0.698 | 1.000 | 124.9 | Hard layer rule-based query construction: rewrite natural language into retrieval-oriented terms without hard filtering. |
+| V15-hard-llm-query-construction | layer_hard_v15_llm_query_construction | markdown_headers | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.454 | 0.468 | 0.516 | 1.000 | 2270.6 | Hard layer LLM query construction: use an OpenAI-compatible LLM to rewrite colloquial questions into retrieval-oriented queries. |
+| V16-hard-llm-query-structured | layer_hard_v16_llm_query_structured | markdown_headers | BAAI/bge-small-zh-v1.5 | structured_hybrid_rrf | 0.403 | 0.523 | 0.563 | 1.000 | 2131.5 | Hard layer LLM query construction plus structured metadata boost after RRF. |
+| V6-hard-bge-small | layer_hard_v6_bge_small | markdown_headers | BAAI/bge-small-zh-v1.5 | hybrid_rrf | 0.461 | 0.568 | 0.603 | 1.000 | 60.4 | Hard layer control using the current main RAG chain. |
+
+## Layered Difficulty Matrix
+
+| Version | Loaded Layers | Eval Layers | Cases | Answer | Citation | Conflict | Multi-hop | Table | Weighted Score |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V13-hard-query-construction | ["baseline", "medium", "hard"] | "hard" | 126 | 0.468 | 0.698 | 0.457 | 0.356 | 0.875 | 0.607 |
+| V6-hard-bge-small | ["baseline", "medium", "hard"] | "hard" | 126 | 0.461 | 0.603 | 0.343 | 0.252 | 0.750 | 0.546 |
+
+Selection rule: standard cases use Answer 30%, Citation 30%, Hit/MRR 20%, Refusal 15%, Latency 5%; hard cases use Citation 25%, Conflict 20%, Multi-hop 15%, Answer 20%, Refusal 15%, Latency 5%.
+
+## Query Construction Findings
+
+| Version | Retriever | Query Construction | Structured Boost | Answer | Citation | Conflict | Multi-hop | Table | p95 ms |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| V6-hard-bge-small | hybrid_rrf | False/rules | False | 0.461 | 0.603 | 0.343 | 0.252 | 0.750 | 60.4 |
+| V13-hard-query-construction | hybrid_rrf | True/rules | False | 0.468 | 0.698 | 0.457 | 0.356 | 0.875 | 124.9 |
+| V15-hard-llm-query-construction | hybrid_rrf | True/llm | False | 0.454 | 0.516 | 0.343 | 0.126 | 0.750 | 2270.6 |
+| V16-hard-llm-query-structured | structured_hybrid_rrf | True/llm | True | 0.403 | 0.563 | 0.800 | 0.285 | 0.062 | 2131.5 |
+
+Decision rule: query construction is useful only if it improves hard-case coverage without lowering citation, conflict handling, or latency beyond the business tolerance. It should remain an experiment unless it beats V6/V11 on hard weighted score.
 
 ## Embedding Model Findings
 
 | Version | Model | Status | Dim | Load ms | Answer Acc. | Citation | p95 ms | Notes |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| V6-bge-small | BAAI/bge-small-zh-v1.5 | completed | 512 | 65.1 | 0.476 | 0.901 | 57.5 | trust_remote_code=False; load_mode=local_cache |
-| V9-qwen3-0.6b | Qwen/Qwen3-Embedding-0.6B | completed | 1024 | 891.8 | 0.472 | 0.907 | 226.9 | trust_remote_code=True; load_mode=local_cache |
-| V9-bge-m3 | BAAI/bge-m3 | completed | 1024 | 827.3 | 0.484 | 0.898 | 115.0 | trust_remote_code=False; load_mode=local_cache |
-| V9-gte-qwen2-1.5b | Alibaba-NLP/gte-Qwen2-1.5B-instruct | skipped | - | - | - | - | - | Embedding build failed: Alibaba-NLP/gte-Qwen2-1.5B-instruct; 'DynamicCache' object has no attribute 'get_usable_length' |
+| V6-hard-bge-small | BAAI/bge-small-zh-v1.5 | completed | 512 | 40.8 | 0.461 | 0.603 | 60.4 | trust_remote_code=False; load_mode=local_cache |
 
 Decision rule: MTEB/C-MTEB rank is only used to choose candidates. The project default changes only when a candidate improves enterprise-policy RAG metrics enough to justify latency, disk, memory, and dependency cost.
 
-## Chunking Strategy Findings
-
-| Chunk Strategy | Representative Config | Chunks | Answer Acc. | Hit@5 | Citation | Finding |
-| --- | --- | ---: | ---: | ---: | ---: | --- |
-| Fixed window | V2 `bm25_fixed_window` | 118 | 0.508 | 1.000 | 0.458 | 粗粒度窗口召回强，但引用边界弱。 |
-| Recursive character | V2R `bm25_recursive_character_chunk` | 122 | 0.553 | 0.983 | 0.474 | 通用递归分块提升答案关键词覆盖，但 citation 不适合制度条款溯源。 |
-| Header/article-aware | V6-bge-small `hybrid_bge_small_faiss_guarded` | 833 | 0.476 | 0.903 | 0.901 | 制度结构分块的引用准确率最高，适合政策问答的可追溯要求。 |
-| Semantic chunk | V6-semantic `hybrid_bge_small_semantic_guarded` | 706 | 0.479 | 0.903 | 0.901 | 语义合并略提升答案覆盖，citation 与结构分块持平，但引入额外 embedding 分块成本。 |
-
-Conclusion: recursive chunking is valuable as a generic fallback and improves broad recall, but enterprise policy QA prioritizes traceable citations. The deployed strategy remains header/article-aware chunking with bge-small hybrid retrieval; semantic chunking is a credible enhancement candidate when answer completeness matters more than strict article-level citation.
-
-## Index Optimization Findings
-
-| Version | Index Strategy | Status | Chunk | Retriever | Chunks | Answer Acc. | Hit@5 | Citation | p95 ms | Notes |
-| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| V6-bge-small | Current structured chunk index | completed | markdown_headers | hybrid_rrf | 833 | 0.476 | 0.903 | 0.901 | 57.5 | sentence_window=0, structured_boost=False |
-| V10-sentence-window-vector | Sentence-window vector | completed | sentence_window | vector_only | 1609 | 0.294 | 0.833 | 0.393 | 17.7 | sentence_window=1, structured_boost=False |
-| V10-sentence-window-hybrid | Sentence-window hybrid | completed | sentence_window | hybrid_rrf | 1609 | 0.398 | 0.907 | 0.904 | 66.2 | sentence_window=1, structured_boost=False |
-| V11-structured-hybrid | Structured metadata boost | completed | markdown_headers | structured_hybrid_rrf | 833 | 0.487 | 0.880 | 0.880 | 46.8 | sentence_window=0, structured_boost=True |
-| V12-sentence-structured-hybrid | Sentence-window + structured boost | completed | sentence_window | structured_hybrid_rrf | 1609 | 0.372 | 0.897 | 0.895 | 68.9 | sentence_window=1, structured_boost=True |
-
-Decision rule: sentence-window retrieval is useful only if extra local context improves answers without damaging citation quality. Structured retrieval is useful only if metadata boosts improve ranking without over-filtering or hurting refusal behavior.
-
 ## Failure-driven Iteration Notes
 
-### V0 llm_direct_no_retrieval
+### V13-hard-query-construction layer_hard_v13_query_construction
 
-- Finding: 无知识库直答基线，用于暴露不可追溯和知识库外问题无法拒答的问题。
-- Next optimization: 引入企业制度知识库和最小检索链路，先解决答案来源不可追溯问题。
+- Finding: Hard layer rule-based query construction: rewrite natural language into retrieval-oriented terms without hard filtering.
+- Next optimization: Check whether query construction improves version, multi-hop, table and exception hard cases without hurting citations.
 - Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=[]
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=[]
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=[]
+  - `colloquial_001` 我现在去北京出差，住酒店到底按2025的老标准还是2026的新标准啊？ | expected=['PDF-HARD-TRAVEL-2026'] | retrieved=['PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026']
+  - `colloquial_002` 差旅报销和那个4月份的新通知说法不一样，我按哪个来交材料？ | expected=['PDF-HARD-FIN-NOTICE-2026', 'PDF-MED-FIN-EXPENSE-2026'] | retrieved=['PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026']
+  - `colloquial_003` 客户名单今天急着发给供应商，能不能先导出去，明天再补审批？ | expected=['PDF-HARD-DATA-EXPORT-2026'] | retrieved=['PDF-HARD-PROJECT-PROC-2026', 'PDF-HARD-PROJECT-PROC-2026', 'PDF-HARD-PROJECT-PROC-2026', 'PDF-HARD-PROJECT-PROC-2026', 'PDF-HARD-PROJECT-PROC-2026']
 
-### V10-sentence-window-hybrid hybrid_bge_small_sentence_window_guarded
+### V15-hard-llm-query-construction layer_hard_v15_llm_query_construction
 
-- Finding: 句子窗口索引 + bge-small + BM25 + RRF + 低置信拒答，测试命中句子后回填邻句是否提升最终问答。
-- Next optimization: 如果 Answer 提升但 Citation 下降，则保留为长上下文增强候选，不替换结构化 chunk 主链路。
+- Finding: Hard layer LLM query construction: use an OpenAI-compatible LLM to rewrite colloquial questions into retrieval-oriented queries.
+- Next optimization: Check whether LLM query construction improves colloquial, version-sensitive, multi-hop and exception hard cases without hurting citations.
 - Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
+  - `colloquial_001` 我现在去北京出差，住酒店到底按2025的老标准还是2026的新标准啊？ | expected=['PDF-HARD-TRAVEL-2026'] | retrieved=['PDF-HARD-TRAVEL-2025', 'PDF-HARD-TRAVEL-2025', 'PDF-HARD-TRAVEL-2025', 'PDF-HARD-TRAVEL-2025', 'PDF-HARD-TRAVEL-2025']
+  - `colloquial_002` 差旅报销和那个4月份的新通知说法不一样，我按哪个来交材料？ | expected=['PDF-HARD-FIN-NOTICE-2026', 'PDF-MED-FIN-EXPENSE-2026'] | retrieved=['PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026']
+  - `colloquial_003` 客户名单今天急着发给供应商，能不能先导出去，明天再补审批？ | expected=['PDF-HARD-DATA-EXPORT-2026'] | retrieved=['PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026']
 
-### V10-sentence-window-vector vector_bge_small_sentence_window_faiss
+### V16-hard-llm-query-structured layer_hard_v16_llm_query_structured
 
-- Finding: 句子窗口索引 + bge-small + FAISS，测试句子级 child chunk 的纯向量召回表现。
-- Next optimization: 如果句子级召回更精确但引用或答案完整性下降，则只作为 sentence-window hybrid 的前置实验。
+- Finding: Hard layer LLM query construction plus structured metadata boost after RRF.
+- Next optimization: Check whether LLM-rewritten queries and structured metadata boost can improve hard cases, or whether the two signals over-amplify wrong metadata.
 - Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'IT-VPN-2026', 'IT-PERM-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['FIN-PAYMENT-2026', 'HR-LEAVE-2026', 'PDF-SEC-INFO-2026', 'PDF-SEC-DATAEXPORT-2026', 'SEC-ACCESS-2026']
+  - `colloquial_005` 三万多的采购，拆成两张单是不是就不用走高一级审批了？ | expected=['PDF-HARD-PROJECT-PROC-2026'] | retrieved=['PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026', 'PDF-HARD-FIN-NOTICE-2026']
+  - `colloquial_007` 领导让我先把客户数据导出来给外包团队，后面合同再补，这样行吗？ | expected=['PDF-HARD-DATA-EXPORT-2026', 'PDF-MED-PROC-CONTRACT-2026'] | retrieved=['PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026', 'PDF-SEC-DATAEXPORT-2026']
+  - `colloquial_009` 发票少了一张，但是金额不大，可以直接报吗？ | expected=['PDF-HARD-FIN-NOTICE-2026', 'PDF-MED-FIN-EXPENSE-2026'] | retrieved=['FIN-INVOICE-2026', 'FIN-INVOICE-2026', 'FIN-INVOICE-2026', 'FIN-INVOICE-2026', 'FIN-INVOICE-2026']
 
-### V11-structured-hybrid structured_hybrid_bge_small_guarded
+### V6-hard-bge-small layer_hard_v6_bge_small
 
-- Finding: 结构化 metadata soft boost + bge-small + BM25 + RRF + 低置信拒答，测试部门、流程、风险和章节类型线索是否提升排序。
-- Next optimization: 如果 Citation 或 MRR 提升且不牺牲拒答和延迟，可考虑进入主链路候选。
+- Finding: Hard layer control using the current main RAG chain.
+- Next optimization: Baseline for hard benchmark; advanced strategies must beat it without hurting citation or refusal.
 - Representative failures:
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_paraphrase` 我想咨询入职材料相关事项，应该看哪份制度、走哪个入口？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_ambiguous_followup` 入离职流程材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V12-sentence-structured-hybrid sentence_structured_hybrid_bge_small_guarded
-
-- Finding: 句子窗口索引 + 结构化 metadata soft boost + bge-small + BM25 + RRF + 低置信拒答，测试两类索引增强叠加效果。
-- Next optimization: 只有在 Citation/Answer 明显超过 V6 且 p95 可接受时才考虑替换；否则说明索引增强不是越多越好。
-- Representative failures:
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_paraphrase` 我想咨询入职材料相关事项，应该看哪份制度、走哪个入口？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_ambiguous_followup` 入离职流程材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V1 keyword_whole_document
-
-- Finding: 整文档粒度的关键词检索，验证最小知识库检索是否能命中文档。
-- Next optimization: 整文档会导致引用章节粗、上下文噪声大，因此需要测试更细的 chunk。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026', 'ADM-MEETING-2026', 'FIN-BUDGET-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'ADM-MEETING-2026', 'ADM-SEAL-2026', 'ADM-TRAVEL-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-PROC-PURCHASE-2026', 'ADM-MEETING-2026', 'ADM-SEAL-2026']
-
-### V2 bm25_fixed_window
-
-- Finding: 固定长度滑窗分块 + BM25，测试简单 chunk 策略对召回和引用的影响。
-- Next optimization: 固定窗口容易切断制度标题和章节语义，继续测试 Markdown header-aware chunk。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-
-### V2R bm25_recursive_character_chunk
-
-- Finding: 递归字符分块 + BM25，对比固定窗口和制度结构分块的边界质量。
-- Next optimization: 如果引用边界仍不如制度结构分块，则保留为通用文档 fallback，而不作为制度主策略。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-
-### V3 bm25_header_chunk
-
-- Finding: Markdown 标题层级分块 + BM25，保留制度章节结构，提高引用可解释性。
-- Next optimization: BM25 对精确词效果好，但同义问法和模糊问法仍需要语义召回。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PDF-PROC-PURCHASE-2026', 'PDF-SEC-INFO-2026', 'IT-CHANGE-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V3S bm25_semantic_chunk
-
-- Finding: 语义分块 + BM25，先用 bge-small 合并相邻语义单元，再测试关键词检索效果。
-- Next optimization: 观察语义合并是否改善答案完整性，或是否牺牲条款级 citation。
-- Representative failures:
-  - `hr_leave_2026_paraphrase` 我想咨询年假相关事项，应该看哪份制度、走哪个入口？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PDF-PROC-PURCHASE-2026', 'PDF-SEC-INFO-2026', 'IT-CHANGE-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V4-bge-base vector_bge_base_zh_faiss
-
-- Finding: BAAI/bge-base-zh-v1.5 + FAISS，测试更大中文 embedding 的召回收益和成本。
-- Next optimization: 如果收益不明显，优先选择更轻量模型降低部署成本。
-- Representative failures:
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'SEC-ACCESS-2026', 'FIN-PAYMENT-2026', 'HR-TRANSFER-2026']
-  - `hr_leave_2026_risk` 员工请假与休假管理制度有哪些风险提示和注意事项？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026']
-
-### V4-bge-small vector_bge_small_zh_faiss
-
-- Finding: BAAI/bge-small-zh-v1.5 + FAISS，测试中文轻量 embedding 的语义召回表现。
-- Next optimization: 对比更大中文 embedding 和多语言 embedding 的召回质量与耗时。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'IT-CHANGE-2026', 'HR-TRANSFER-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'FIN-PAYMENT-2026', 'SEC-ACCESS-2026', 'HR-LEAVE-2026']
-
-### V4-e5 vector_multilingual_e5_faiss
-
-- Finding: intfloat/multilingual-e5-small + FAISS，测试多语言 embedding 在中文制度问答中的表现。
-- Next optimization: 结合准确率、延迟、模型大小和部署可用性选择 embedding。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'HR-ONBOARD-2026', 'PDF-HR-ATT-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'HR-LEAVE-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'HR-TRANSFER-2026']
-
-### V4-recursive vector_bge_small_recursive_faiss
-
-- Finding: 递归字符分块 + bge-small + FAISS，测试通用递归分块在纯向量召回中的表现。
-- Next optimization: 与 header/article-aware chunk 对比，判断通用分块是否会损失制度引用精度。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'FIN-ADV-2026', 'ADM-TRAVEL-2026', 'HR-TRAIN-2026', 'SEC-ACCESS-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['SEC-ACCESS-2026', 'HR-LEAVE-2026', 'FIN-PAYMENT-2026', 'HR-LEAVE-2026', 'IT-CHANGE-2026']
-
-### V4-semantic vector_bge_small_semantic_faiss
-
-- Finding: 语义分块 + bge-small + FAISS，测试 semantic chunking 对纯向量召回的影响。
-- Next optimization: 与结构分块纯向量结果对比，判断语义合并是否提升自然语言召回。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PROC-BIDDING-2026', 'IT-INCIDENT-2026', 'IT-CHANGE-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'FIN-PAYMENT-2026', 'SEC-ACCESS-2026', 'IT-ASSET-2026', 'ADM-MEETING-2026']
-
-### V4 vector_local_hashing_numpy
-
-- Finding: 本地 hashing embedding + NumPy 向量检索，用作可复现的轻量语义召回基线。
-- Next optimization: 单向量召回对业务关键词不稳定，需要和 BM25 融合。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-HANDBOOK-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['IT-CHANGE-2026', 'FIN-BUDGET-2026', 'IT-INCIDENT-2026', 'IT-VPN-2026', 'AUDIT-EVIDENCE-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['IT-VPN-2026', 'SEC-ACCESS-2026', 'FIN-ADV-2026', 'LEGAL-CONTRACT-2026', 'HR-TRANSFER-2026']
-
-### V5 bm25_vector_rrf_numpy
-
-- Finding: BM25 + local hashing 向量召回 + RRF 融合，验证混合检索收益。
-- Next optimization: 融合后仍可能召回知识库外相近制度，需要低置信拒答和业务规则。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V6-bge-base hybrid_bge_base_faiss_guarded
-
-- Finding: BAAI/bge-base-zh-v1.5 + BM25 + RRF + 低置信拒答，测试更大中文 embedding 是否带来可观收益。
-- Next optimization: 如果准确率收益有限但延迟/模型体积更高，则不选择 bge-base。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V6-bge-small hybrid_bge_small_faiss_guarded
-
-- Finding: BAAI/bge-small-zh-v1.5 + BM25 + RRF + 低置信拒答，测试轻量中文 embedding 在最终链路中的表现。
-- Next optimization: 与 bge-base/e5 的同类 hybrid 配置比较准确率、引用准确率、拒答准确率和延迟。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V6-e5 hybrid_multilingual_e5_faiss_guarded
-
-- Finding: intfloat/multilingual-e5-small + BM25 + RRF + 低置信拒答，测试多语言 embedding 在中文制度问答中的可用性。
-- Next optimization: 如果中文效果不如 bge 系列，则保留为多语言场景备选而非中文主链路。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V6 hybrid_rrf_with_refusal_gate
-
-- Finding: 混合检索 + 低置信拒答，用于降低知识库外问题误答。
-- Next optimization: 对员工自然语言中的部门、流程、系统入口做 query rewrite 和 metadata hint。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V6-recursive hybrid_bge_small_recursive_guarded
-
-- Finding: 递归字符分块 + bge-small + BM25 + RRF + 低置信拒答，测试通用分块在最终链路中的可用性。
-- Next optimization: 如果指标接近但 citation 较弱，继续保留结构分块作为制度文档主策略。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-
-### V6-semantic hybrid_bge_small_semantic_guarded
-
-- Finding: 语义分块 + bge-small + BM25 + RRF + 低置信拒答，测试 semantic chunking 在最终链路中的收益。
-- Next optimization: 如果答案完整性提升但 citation 下降，应说明制度类文档仍优先采用结构感知分块。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V7 query_rewrite_metadata_guarded
-
-- Finding: 候选增强链路：query rewrite + metadata hint + BM25/向量/RRF + 低置信拒答，用于验证规则增强是否继续提升。
-- Next optimization: 如果接入真实企业数据，应继续做权限过滤、人工反馈回流和 LLM judge 评估。
-- Representative failures:
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_perf_2026_materials` 办理绩效管理需要哪些材料？ | expected=['HR-PERF-2026'] | retrieved=['PDF-HR-PERF-2026', 'PDF-HR-PERF-2026', 'PDF-HR-PERF-2026', 'PDF-HR-PERF-2026', 'PDF-HR-PERF-2026']
-
-### V8-bge-m3 vector_bge_m3_faiss
-
-- Finding: BAAI/bge-m3 + FAISS，测试多语言、多粒度、长文本 embedding 在正式制度 PDF 与中文条款召回中的表现。
-- Next optimization: 如果 bge-m3 在 PDF 长条款召回上明显更好，再评估是否接受更高模型体积和索引构建成本。
-- Representative failures:
-  - `hr_leave_2026_process` 员工请假与休假管理制度的办理步骤是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'HR-LEAVE-2026', 'HR-ONBOARD-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_materials` 办理请假申请需要哪些材料？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'SEC-ACCESS-2026', 'ADM-TRAVEL-2026']
-
-### V8-gte-qwen2-1.5b vector_gte_qwen2_15b_faiss
-
-- Status: skipped.
-- Reason: Embedding build failed: Alibaba-NLP/gte-Qwen2-1.5B-instruct; 'DynamicCache' object has no attribute 'get_usable_length'
-- Next optimization: 如果指标最高但 trust_remote_code、模型体积或延迟成本过高，则只作为增强实验结论，不进入默认主链路。
-
-### V8-qwen3-0.6b vector_qwen3_embedding_06b_faiss
-
-- Finding: Qwen3-Embedding-0.6B + FAISS，测试近期 MTEB/C-MTEB 强模型在企业制度纯向量召回中的表现。
-- Next optimization: 如果纯向量召回优于 bge-small，再进入 V9 final-chain 对比；若加载成本过高，则保留为榜单候选但不默认部署。
-- Representative failures:
-  - `hr_leave_2026_sla` 请假申请的审批时限或提前要求是什么？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-TRANSFER-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-ATT-2026']
-  - `hr_leave_2026_risk` 员工请假与休假管理制度有哪些风险提示和注意事项？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_leave_2026_system` 员工请假与休假管理制度应该在哪个系统提交？ | expected=['HR-LEAVE-2026'] | retrieved=['HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'HR-LEAVE-2026', 'PDF-HR-LEAVE-PDF-2026']
-
-### V9-bge-m3 hybrid_bge_m3_guarded
-
-- Finding: BAAI/bge-m3 + BM25 + RRF + 低置信拒答，验证多语言长文本 embedding 在最终制度问答链路中的收益。
-- Next optimization: 若 PDF 长制度问题收益明显且延迟可接受，则作为 bge-small 的多语言/长文本升级候选。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-
-### V9-gte-qwen2-1.5b hybrid_gte_qwen2_15b_guarded
-
-- Status: skipped.
-- Reason: Embedding build failed: Alibaba-NLP/gte-Qwen2-1.5B-instruct; 'DynamicCache' object has no attribute 'get_usable_length'
-- Next optimization: 若指标收益不足以覆盖 trust_remote_code 和更高资源成本，则只保留为增强实验，不作为默认主链路。
-
-### V9-qwen3-0.6b hybrid_qwen3_embedding_06b_guarded
-
-- Finding: Qwen3-Embedding-0.6B + BM25 + RRF + 低置信拒答，验证榜单强模型在最终 RAG 链路中是否优于 bge-small。
-- Next optimization: 若 Citation/Refusal 持平且 Answer Accuracy Proxy 明显提升，同时 p95 可接受，则考虑替换 bge-small。
-- Representative failures:
-  - `hr_leave_2026_ambiguous_followup` 请假申请材料不齐被退回后怎么处理，是否可以线下先办？ | expected=['HR-LEAVE-2026'] | retrieved=['PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026', 'PDF-HR-LEAVE-PDF-2026']
-  - `hr_onboard_2026_materials` 办理入离职流程需要哪些材料？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
-  - `hr_onboard_2026_sla` 入离职流程的审批时限或提前要求是什么？ | expected=['HR-ONBOARD-2026'] | retrieved=['PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026', 'PDF-HR-ONOFF-2026']
+  - `colloquial_001` 我现在去北京出差，住酒店到底按2025的老标准还是2026的新标准啊？ | expected=['PDF-HARD-TRAVEL-2026'] | retrieved=['ADM-TRAVEL-2026', 'ADM-TRAVEL-2026', 'ADM-TRAVEL-2026', 'ADM-TRAVEL-2026', 'ADM-TRAVEL-2026']
+  - `colloquial_002` 差旅报销和那个4月份的新通知说法不一样，我按哪个来交材料？ | expected=['PDF-HARD-FIN-NOTICE-2026', 'PDF-MED-FIN-EXPENSE-2026'] | retrieved=['PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026', 'PDF-FIN-EXP-2026']
+  - `colloquial_003` 客户名单今天急着发给供应商，能不能先导出去，明天再补审批？ | expected=['PDF-HARD-DATA-EXPORT-2026'] | retrieved=['LEGAL-NDA-2026', 'LEGAL-NDA-2026', 'LEGAL-NDA-2026', 'LEGAL-NDA-2026', 'LEGAL-NDA-2026']
 
 ## Vector Store Selection
 
@@ -358,4 +98,4 @@ Decision rule: sentence-window retrieval is useful only if extra local context i
 
 ## Resume-ready Story
 
-基于 324 条制度问答评估集，从 `llm_direct_no_retrieval` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；真实 embedding full 实验验证链路收益，使 Answer Accuracy Proxy 从 0.000 提升至 0.476，Citation Accuracy 从 0.074 提升至 0.901，Refusal Accuracy 从 0.000 提升至 1.000。
+基于 126 条制度问答评估集，从 `layer_hard_v13_query_construction` 出发，依次优化 chunk、BM25+向量混合检索、RRF 融合与低置信拒答；真实 embedding full 实验验证链路收益，使 Answer Accuracy Proxy 从 0.468 提升至 0.468，Citation Accuracy 从 0.698 提升至 0.698，Refusal Accuracy 从 1.000 提升至 1.000。

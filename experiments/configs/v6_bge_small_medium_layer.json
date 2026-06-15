@@ -1,0 +1,19 @@
+{
+  "id": "V6-medium-bge-small",
+  "name": "layer_medium_v6_bge_small",
+  "stage": "quick",
+  "description": "Medium layer using the current main RAG chain.",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "dataset_layers": ["baseline", "medium"],
+  "eval_dataset_layers": ["baseline", "medium"],
+  "selection_profile": "standard",
+  "final_candidate": false,
+  "require_real_embedding": true,
+  "next_step": "Use this as the medium-complexity control group."
+}

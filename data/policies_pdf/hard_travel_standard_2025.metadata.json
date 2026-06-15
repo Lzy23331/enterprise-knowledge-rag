@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-HARD-TRAVEL-2025",
+  "title": "差旅费用标准管理办法（2025版）",
+  "department": "Admin",
+  "process_type": "travel",
+  "risk_level": "high",
+  "owner": "行政部",
+  "system": "企业流程中心",
+  "form_id": "FORM-HARD-TRAVEL-2025",
+  "approval_sla": "三个工作日",
+  "version": "V3.0",
+  "effective_date": "2026-04-01",
+  "source_type": "pdf",
+  "dataset_layer": "hard",
+  "effective_from": "2026-04-01",
+  "effective_to": "",
+  "supersedes": "",
+  "priority": "20",
+  "conflict_group": "travel_standard",
+  "related_doc_ids": "PDF-MED-FIN-EXPENSE-2026"
+}

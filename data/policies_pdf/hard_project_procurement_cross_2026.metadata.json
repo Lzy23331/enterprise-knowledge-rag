@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-HARD-PROJECT-PROC-2026",
+  "title": "项目采购与经费交叉审批指引",
+  "department": "Procurement",
+  "process_type": "project_procurement",
+  "risk_level": "high",
+  "owner": "采购部",
+  "system": "企业流程中心",
+  "form_id": "FORM-HARD-PROJECT-PROC-2026",
+  "approval_sla": "三个工作日",
+  "version": "V3.0",
+  "effective_date": "2026-04-01",
+  "source_type": "pdf",
+  "dataset_layer": "hard",
+  "effective_from": "2026-04-01",
+  "effective_to": "",
+  "supersedes": "",
+  "priority": "85",
+  "conflict_group": "project_procurement",
+  "related_doc_ids": "PDF-MED-PROJECT-FUND-2026,PDF-MED-PROC-CONTRACT-2026"
+}

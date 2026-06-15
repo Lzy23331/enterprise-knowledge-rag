@@ -1,0 +1,19 @@
+{
+  "id": "V6-hard-bge-small",
+  "name": "layer_hard_v6_bge_small",
+  "stage": "quick",
+  "description": "Hard layer control using the current main RAG chain.",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "dataset_layers": ["baseline", "medium", "hard"],
+  "eval_dataset_layers": "hard",
+  "selection_profile": "hard",
+  "final_candidate": true,
+  "require_real_embedding": true,
+  "next_step": "Baseline for hard benchmark; advanced strategies must beat it without hurting citation or refusal."
+}

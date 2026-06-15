@@ -2,7 +2,7 @@ import json
 import hashlib
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Sequence, Tuple
 
 from .types import Document
 
@@ -42,9 +42,27 @@ def stable_doc_id(relative_path: str) -> str:
     return hashlib.md5(relative_path.encode("utf-8")).hexdigest()
 
 
+def normalize_dataset_layers(dataset_layers: Sequence[str] | str | None) -> set[str]:
+    if not dataset_layers or dataset_layers == "all":
+        return {"all"}
+    if isinstance(dataset_layers, str):
+        values = [dataset_layers]
+    else:
+        values = list(dataset_layers)
+    normalized = {str(value).strip().lower() for value in values if str(value).strip()}
+    return normalized or {"all"}
+
+
+def layer_allowed(metadata: Dict[str, str], dataset_layers: set[str]) -> bool:
+    if "all" in dataset_layers:
+        return True
+    return str(metadata.get("dataset_layer", "baseline")).lower() in dataset_layers
+
+
 class MarkdownPolicyLoader:
-    def __init__(self, data_path: Path):
+    def __init__(self, data_path: Path, dataset_layers: Sequence[str] | str | None = None):
         self.data_path = Path(data_path)
+        self.dataset_layers = normalize_dataset_layers(dataset_layers)
 
     def load(self) -> List[Document]:
         documents: List[Document] = []
@@ -59,18 +77,21 @@ class MarkdownPolicyLoader:
                     "source_path": str(path),
                     "source_file": relative_path,
                     "source_type": "markdown",
+                    "dataset_layer": metadata.get("dataset_layer", "baseline"),
                     "loader": "MarkdownPolicyLoader",
                     "chunk_type": "parent",
                 }
             )
-            documents.append(Document(page_content=content.strip(), metadata=metadata))
+            if layer_allowed(metadata, self.dataset_layers):
+                documents.append(Document(page_content=content.strip(), metadata=metadata))
         return documents
 
 
 class PDFPolicyLoader:
-    def __init__(self, data_path: Path, mode: str = "pypdf"):
+    def __init__(self, data_path: Path, mode: str = "pypdf", dataset_layers: Sequence[str] | str | None = None):
         self.data_path = Path(data_path)
         self.mode = mode
+        self.dataset_layers = normalize_dataset_layers(dataset_layers)
 
     def load(self) -> List[Document]:
         documents: List[Document] = []
@@ -135,6 +156,7 @@ class PDFPolicyLoader:
             {
                 "doc_id": doc_id,
                 "title": metadata.get("title", path.stem),
+                "dataset_layer": metadata.get("dataset_layer", "baseline"),
                 "source_path": str(path),
                 "source_file": relative_path,
                 "source_type": "pdf",
@@ -150,6 +172,8 @@ class PDFPolicyLoader:
                 "chunk_type": "parent",
             }
         )
+        if not layer_allowed(metadata, self.dataset_layers):
+            return []
         return [Document(page_content=merged_text, metadata=metadata)]
 
     def _load_sidecar_metadata(self, path: Path) -> Dict[str, str]:
@@ -174,13 +198,20 @@ class PDFPolicyLoader:
 
 
 class MultiFormatPolicyLoader:
-    def __init__(self, markdown_path: Path, pdf_path: Path | None = None, pdf_mode: str = "pypdf"):
+    def __init__(
+        self,
+        markdown_path: Path,
+        pdf_path: Path | None = None,
+        pdf_mode: str = "pypdf",
+        dataset_layers: Sequence[str] | str | None = None,
+    ):
         self.markdown_path = Path(markdown_path)
         self.pdf_path = Path(pdf_path) if pdf_path else None
         self.pdf_mode = pdf_mode
+        self.dataset_layers = dataset_layers
 
     def load(self) -> List[Document]:
-        documents = MarkdownPolicyLoader(self.markdown_path).load()
+        documents = MarkdownPolicyLoader(self.markdown_path, dataset_layers=self.dataset_layers).load()
         if self.pdf_path:
-            documents.extend(PDFPolicyLoader(self.pdf_path, mode=self.pdf_mode).load())
+            documents.extend(PDFPolicyLoader(self.pdf_path, mode=self.pdf_mode, dataset_layers=self.dataset_layers).load())
         return documents

@@ -120,6 +120,10 @@ class HybridRetriever:
             title = str(doc.metadata.get("title", ""))
             process_type = str(doc.metadata.get("process_type", ""))
             section_type = str(doc.metadata.get("section_type", ""))
+            try:
+                priority = float(str(doc.metadata.get("priority", "50") or "50").split(",")[0])
+            except ValueError:
+                priority = 50.0
             if title and title in query:
                 score += 0.08
             if process_type and process_type in query:
@@ -133,6 +137,10 @@ class HybridRetriever:
                     score += 0.025
             if hints.get("section_type") and section_type == hints["section_type"]:
                 score += 0.04
+            if hints.get("version_sensitive"):
+                score += min(priority, 100.0) / 1000.0
+                if str(doc.metadata.get("supersedes", "")):
+                    score += 0.05
             doc.metadata["structured_score"] = round(score, 6)
         return sorted(
             docs,
@@ -171,6 +179,39 @@ class HybridRetriever:
             hints["terms"].extend(["时限", "工作日", "提前", "SLA"])
         if any(term in query for term in ("金额", "额度", "阈值", "超过")):
             hints["terms"].extend(["金额", "额度", "阈值", "超过"])
+        return hints
+
+    @staticmethod
+    def _structured_hints(query: str) -> Dict[str, object]:
+        hints: Dict[str, object] = {"terms": []}
+        department_terms = {
+            "HR": ("请假", "休假", "考勤", "绩效", "入职", "离职", "员工"),
+            "Finance": ("报销", "发票", "付款", "预算", "备用金", "金额", "经费"),
+            "IT": ("账号", "VPN", "系统", "权限", "电脑", "远程", "办公"),
+            "Security": ("数据", "客户信息", "导出", "安全", "外发"),
+            "Legal": ("合同", "法务", "归档", "保密"),
+            "Procurement": ("采购", "供应商", "招标", "验收"),
+            "Admin": ("印章", "会议室", "出差", "差旅", "住宿"),
+        }
+        for department, terms in department_terms.items():
+            if any(term in query for term in terms):
+                hints["department"] = department
+                hints["terms"].extend(terms)
+                break
+        if any(term in query for term in ("高风险", "生产", "客户数据", "付款", "合同", "印章", "权限")):
+            hints["risk_level"] = "high"
+        if any(term in query for term in ("材料", "附件", "提交", "票据", "证明")):
+            hints["section_type"] = "appendix"
+            hints["terms"].extend(["材料", "附件", "清单", "证明"])
+        if any(term in query for term in ("审批", "流程", "步骤", "办理")):
+            hints["terms"].extend(["审批", "流程", "步骤", "办理"])
+        if any(term in query for term in ("时限", "多久", "提前", "SLA")):
+            hints["terms"].extend(["时限", "工作日", "提前", "SLA"])
+        if any(term in query for term in ("金额", "额度", "阈值", "超过")):
+            hints["terms"].extend(["金额", "额度", "阈值", "超过"])
+        if any(term in query for term in ("版本", "新版", "旧版", "补充通知", "优先", "冲突", "2025", "2026")):
+            hints["version_sensitive"] = True
+            hints["terms"].extend(["版本", "生效", "优先级", "补充通知", "supersedes"])
         return hints
 
     def _expand_sentence_window(self, docs: List[Document]) -> List[Document]:

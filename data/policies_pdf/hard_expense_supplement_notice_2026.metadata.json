@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-HARD-FIN-NOTICE-2026",
+  "title": "财务报销补充通知（2026年4月）",
+  "department": "Finance",
+  "process_type": "expense_notice",
+  "risk_level": "high",
+  "owner": "财务部",
+  "system": "企业流程中心",
+  "form_id": "FORM-HARD-FIN-NOTICE-2026",
+  "approval_sla": "三个工作日",
+  "version": "V3.0",
+  "effective_date": "2026-04-01",
+  "source_type": "pdf",
+  "dataset_layer": "hard",
+  "effective_from": "2026-04-01",
+  "effective_to": "",
+  "supersedes": "PDF-MED-FIN-EXPENSE-2026",
+  "priority": "90",
+  "conflict_group": "expense_rule",
+  "related_doc_ids": "PDF-MED-FIN-EXPENSE-2026,PDF-HARD-TRAVEL-2026"
+}

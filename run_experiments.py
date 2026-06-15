@@ -62,6 +62,12 @@ class ExperimentConfig:
     normalize_embeddings: bool = True
     max_seq_length: Optional[int] = None
     require_real_embedding: bool = False
+    dataset_layers: Any = "all"
+    eval_dataset_layers: Any = "all"
+    selection_profile: str = "standard"
+    query_construction: bool = False
+    query_construction_mode: str = "rules"
+    require_llm_query_construction: bool = False
 
     @classmethod
     def from_path(cls, path: Path) -> "ExperimentConfig":
@@ -77,7 +83,20 @@ class ExperimentFailed(Exception):
     pass
 
 
-def load_cases() -> List[Dict[str, Any]]:
+def normalize_layers(value: Any) -> set[str]:
+    if not value or value == "all":
+        return {"all"}
+    if isinstance(value, str):
+        return {value.lower()}
+    return {str(item).lower() for item in value}
+
+
+def case_layer(case: Dict[str, Any]) -> str:
+    return str(case.get("dataset_layer") or case.get("difficulty_level") or "baseline").lower()
+
+
+def load_cases(dataset_layers: Any = "all") -> List[Dict[str, Any]]:
+    allowed_layers = normalize_layers(dataset_layers)
     cases = []
     for path in sorted(EVAL_DIR.glob("*.jsonl")):
         with path.open("r", encoding="utf-8-sig") as handle:
@@ -85,7 +104,9 @@ def load_cases() -> List[Dict[str, Any]]:
                 if line.strip():
                     case = json.loads(line)
                     case.setdefault("eval_file", path.name)
-                    cases.append(case)
+                    case.setdefault("dataset_layer", "hard" if path.name == "hard_eval_cases.jsonl" else "baseline")
+                    if "all" in allowed_layers or case_layer(case) in allowed_layers:
+                        cases.append(case)
     return cases
 
 
@@ -159,6 +180,60 @@ def text_overlap_score(answer: str, reference_answer: str) -> float:
     return len(answer_terms & reference_terms) / len(reference_terms)
 
 
+def conflict_resolution_accuracy(retrieved_doc_ids: List[str], case: Dict[str, Any]) -> float:
+    conflict_doc_ids = set(case.get("conflict_doc_ids") or [])
+    priority_doc_ids = set(case.get("expected_policy_priority") or case.get("expected_doc_ids") or [])
+    if not conflict_doc_ids and "版本" not in str(case.get("question_type", "")) and "冲突" not in str(case.get("required_reasoning", "")):
+        return 0.0
+    retrieved = retrieved_doc_ids[:TOP_K]
+    if not retrieved:
+        return 0.0
+    first_relevant_rank = None
+    first_conflict_rank = None
+    for index, doc_id in enumerate(retrieved, 1):
+        if first_relevant_rank is None and doc_id in priority_doc_ids:
+            first_relevant_rank = index
+        if first_conflict_rank is None and doc_id in conflict_doc_ids and doc_id not in priority_doc_ids:
+            first_conflict_rank = index
+    if first_relevant_rank is None:
+        return 0.0
+    if first_conflict_rank is None:
+        return 1.0
+    return float(first_relevant_rank < first_conflict_rank)
+
+
+def multi_hop_coverage(retrieved_doc_ids: List[str], case: Dict[str, Any]) -> float:
+    expected = set(case.get("expected_doc_ids") or [])
+    if len(expected) < 2 and "跨文档" not in str(case.get("question_type", "")) and "multi_hop" not in str(case.get("required_reasoning", "")):
+        return 0.0
+    if not expected:
+        return 0.0
+    return len(set(retrieved_doc_ids[:TOP_K]) & expected) / len(expected)
+
+
+def table_evidence_accuracy(retrieved_doc_ids: List[str], case: Dict[str, Any]) -> float:
+    is_table_case = (
+        "表格" in str(case.get("question_type", ""))
+        or "金额" in str(case.get("question_type", ""))
+        or "table" in str(case.get("required_reasoning", ""))
+    )
+    if not is_table_case:
+        return 0.0
+    return hit_at_k(retrieved_doc_ids, case.get("expected_doc_ids") or [], TOP_K)
+
+
+def priority_compliance(retrieved_doc_ids: List[str], case: Dict[str, Any]) -> float:
+    priority_doc_ids = set(case.get("expected_policy_priority") or [])
+    if not priority_doc_ids:
+        return 0.0
+    for doc_id in retrieved_doc_ids[:TOP_K]:
+        if doc_id in priority_doc_ids:
+            return 1.0
+        if doc_id in set(case.get("conflict_doc_ids") or []):
+            return 0.0
+    return 0.0
+
+
 def percentile(values: List[float], pct: float) -> float:
     if not values:
         return 0.0
@@ -179,6 +254,10 @@ def summarize_cases(cases: List[Dict[str, Any]]) -> Dict[str, Any]:
     retrieval_cases = [case for case in cases if not case["should_refuse"]]
     refusal_cases = [case for case in cases if case["should_refuse"]]
     latencies = [case["metrics"]["latency_ms"] for case in cases]
+    conflict_cases = [case for case in cases if case["metrics"].get("conflict_resolution_accuracy_applicable")]
+    multi_hop_cases = [case for case in cases if case["metrics"].get("multi_hop_coverage_applicable")]
+    table_cases = [case for case in cases if case["metrics"].get("table_evidence_accuracy_applicable")]
+    priority_cases = [case for case in cases if case["metrics"].get("priority_compliance_applicable")]
     return {
         "total": len(cases),
         "retrieval_cases": len(retrieval_cases),
@@ -192,6 +271,14 @@ def summarize_cases(cases: List[Dict[str, Any]]) -> Dict[str, Any]:
         "latency_p50_ms": percentile(latencies, 50),
         "latency_p95_ms": percentile(latencies, 95),
         "latency_avg_ms": average(latencies),
+        "conflict_resolution_accuracy": average([case["metrics"]["conflict_resolution_accuracy"] for case in conflict_cases]),
+        "multi_hop_coverage": average([case["metrics"]["multi_hop_coverage"] for case in multi_hop_cases]),
+        "table_evidence_accuracy": average([case["metrics"]["table_evidence_accuracy"] for case in table_cases]),
+        "priority_compliance": average([case["metrics"]["priority_compliance"] for case in priority_cases]),
+        "conflict_cases": len(conflict_cases),
+        "multi_hop_cases": len(multi_hop_cases),
+        "table_cases": len(table_cases),
+        "priority_cases": len(priority_cases),
     }
 
 
@@ -217,6 +304,154 @@ def query_rewrite(question: str) -> str:
     if not hints:
         return question
     return question + " " + " ".join(hints)
+
+
+def construct_query(question: str) -> Dict[str, Any]:
+    rewritten_terms = []
+    boost_terms = []
+    soft_filters: Dict[str, str] = {}
+    intents = []
+
+    rules = [
+        {
+            "terms": ("2025", "2026", "版本", "新版", "旧版", "补充通知", "优先", "冲突", "现在", "当前"),
+            "intent": "version_conflict",
+            "boost": ("版本", "生效日期", "effective_from", "supersedes", "priority", "补充通知", "新版", "旧版"),
+        },
+        {
+            "terms": ("报销", "发票", "票据", "付款", "经费", "预算"),
+            "intent": "finance_policy",
+            "department": "Finance",
+            "boost": ("财务", "报销", "票据", "付款", "预算", "经费", "补充通知"),
+        },
+        {
+            "terms": ("出差", "差旅", "住宿", "交通", "城市"),
+            "intent": "travel_policy",
+            "department": "Admin",
+            "boost": ("差旅", "住宿", "城市等级", "报销标准", "2026"),
+        },
+        {
+            "terms": ("采购", "供应商", "合同", "比价", "招标", "验收"),
+            "intent": "procurement_policy",
+            "department": "Procurement",
+            "boost": ("采购", "合同", "供应商", "比价", "验收", "交叉审批"),
+        },
+        {
+            "terms": ("客户数据", "导出", "外发", "数据", "安全", "权限"),
+            "intent": "security_policy",
+            "department": "Security",
+            "boost": ("客户数据", "导出", "外发", "安全", "审批", "留痕", "风险评估"),
+        },
+        {
+            "terms": ("远程", "VPN", "电脑", "连不上", "账号", "在家办公"),
+            "intent": "remote_it_policy",
+            "department": "IT",
+            "boost": ("远程办公", "VPN", "账号权限", "安全例外", "IT"),
+        },
+        {
+            "terms": ("超过", "金额", "额度", "阈值", "30000", "三万", "表格", "标准"),
+            "intent": "threshold_table",
+            "boost": ("金额", "阈值", "审批权限", "附表", "超过", "标准事项"),
+            "section_type": "appendix",
+        },
+        {
+            "terms": ("同时", "还要", "涉及", "一起", "哪个先", "哪些制度"),
+            "intent": "multi_hop",
+            "boost": ("关联制度", "related_doc_ids", "跨部门", "会签", "主责部门"),
+        },
+        {
+            "terms": ("紧急", "先", "后补", "补审批", "例外"),
+            "intent": "exception",
+            "boost": ("紧急事项", "例外事项", "三个工作日", "补齐", "复盘", "留痕"),
+        },
+    ]
+
+    for rule in rules:
+        if any(term in question for term in rule["terms"]):
+            intents.append(rule["intent"])
+            rewritten_terms.extend(rule.get("boost", ()))
+            boost_terms.extend(rule.get("boost", ()))
+            if "department" in rule and "department" not in soft_filters:
+                soft_filters["department"] = rule["department"]
+            if "section_type" in rule:
+                soft_filters["section_type"] = rule["section_type"]
+
+    if "version_conflict" in intents:
+        soft_filters["version_sensitive"] = "true"
+    if "multi_hop" in intents:
+        soft_filters["multi_hop"] = "true"
+
+    deduped_terms = list(dict.fromkeys(term for term in rewritten_terms if term))
+    rewritten_query = question if not deduped_terms else question + " " + " ".join(deduped_terms)
+    return {
+        "original_query": question,
+        "rewritten_query": rewritten_query,
+        "intent": "+".join(dict.fromkeys(intents)) or "general",
+        "soft_filters": soft_filters,
+        "boost_terms": list(dict.fromkeys(boost_terms)),
+        "construction_mode": "rules",
+    }
+
+
+def llm_construct_query(question: str) -> Dict[str, Any]:
+    api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ExperimentSkipped("LLM query construction requires DEEPSEEK_API_KEY or OPENAI_API_KEY.")
+
+    from openai import OpenAI
+
+    base_url = DEFAULT_CONFIG.llm_base_url if os.getenv("DEEPSEEK_API_KEY") else os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    prompt = f"""你是企业制度 RAG 的查询构建器。请把员工口语化问题转换成检索用 JSON。
+
+要求：
+- 只输出 JSON，不要解释。
+- 不要编造制度名。
+- rewritten_query 应保留用户原意，并补充检索关键词。
+- intent 只能从 general/version_conflict/priority/multi_hop/threshold_table/exception/security_policy/procurement_policy/travel_policy/finance_policy/remote_it_policy/refusal_candidate 中选择。
+- soft_filters 只放弱提示，不做强过滤。可包含 department、section_type、version_sensitive、multi_hop。
+- boost_terms 是检索增强词列表。
+
+用户问题：{question}
+
+JSON schema:
+{{
+  "rewritten_query": "...",
+  "intent": "...",
+  "soft_filters": {{}},
+  "boost_terms": ["..."]
+}}
+"""
+    try:
+        response = client.chat.completions.create(
+            model=DEFAULT_CONFIG.llm_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=500,
+        )
+    except Exception as exc:
+        raise ExperimentSkipped(f"LLM query construction call failed: {exc}") from exc
+    content = response.choices[0].message.content or ""
+    content = content.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ExperimentSkipped(f"LLM query construction returned invalid JSON: {content[:120]}") from exc
+
+    rewritten_query = str(payload.get("rewritten_query") or question).strip()
+    boost_terms = [str(term) for term in payload.get("boost_terms", []) if str(term).strip()]
+    if not rewritten_query:
+        rewritten_query = question
+    if boost_terms and " ".join(boost_terms) not in rewritten_query:
+        rewritten_query = rewritten_query + " " + " ".join(boost_terms)
+    return {
+        "original_query": question,
+        "rewritten_query": rewritten_query,
+        "intent": str(payload.get("intent") or "general"),
+        "soft_filters": payload.get("soft_filters") if isinstance(payload.get("soft_filters"), dict) else {},
+        "boost_terms": boost_terms,
+        "construction_mode": "llm",
+    }
 
 
 def infer_filters(question: str, chunks: List[Document]) -> Dict[str, str]:
@@ -260,6 +495,10 @@ class ExperimentRunner:
     def initialize(self) -> None:
         if self.config.retriever == "llm_direct":
             return
+        if self.config.query_construction and self.config.query_construction_mode == "llm":
+            api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
+            if self.config.require_llm_query_construction and not api_key:
+                raise ExperimentSkipped("LLM query construction requires DEEPSEEK_API_KEY or OPENAI_API_KEY.")
         loader = PolicyDocumentLoader(
             DEFAULT_CONFIG.data_path,
             pdf_path=DEFAULT_CONFIG.pdf_data_path,
@@ -273,6 +512,7 @@ class ExperimentRunner:
             sentence_window_size=self.config.sentence_window_size,
             sentence_max_chars=self.config.sentence_max_chars,
             sentence_min_chars=self.config.sentence_min_chars,
+            dataset_layers=self.config.dataset_layers,
         )
         self.parents = loader.load_parent_documents()
         self.chunks = loader.split_documents(self.parents)
@@ -331,7 +571,18 @@ class ExperimentRunner:
     def retrieve(self, question: str) -> List[Document]:
         if self.retriever is None:
             return []
-        rewritten = query_rewrite(question) if self.config.query_rewrite else question
+        constructed = None
+        if self.config.query_construction:
+            if self.config.query_construction_mode == "llm":
+                try:
+                    constructed = llm_construct_query(question)
+                except ExperimentSkipped:
+                    if self.config.require_llm_query_construction:
+                        raise
+                    constructed = construct_query(question)
+            else:
+                constructed = construct_query(question)
+        rewritten = constructed["rewritten_query"] if constructed else query_rewrite(question) if self.config.query_rewrite else question
         filters = infer_filters(question, self.chunks) if self.config.metadata_filter else None
         if isinstance(self.retriever, HybridRetriever):
             return self.retriever.search(rewritten, top_k=TOP_K, filters=filters)
@@ -387,7 +638,17 @@ def evaluate_experiment(config: ExperimentConfig, cases: List[Dict[str, Any]]) -
 
     evaluated = []
     for case in cases:
-        response = runner.answer(case["question"])
+        try:
+            response = runner.answer(case["question"])
+        except ExperimentSkipped as exc:
+            return {
+                "config": config.__dict__,
+                "status": "skipped",
+                "skip_reason": str(exc),
+                "summary": {},
+                "failure_cases": [],
+                "cases": [],
+            }
         retrieved_doc_ids = [str(doc.metadata.get("doc_id")) for doc in response["chunks"]]
         source_doc_ids = [str(source.get("doc_id", "")) for source in response["sources"]]
         should_refuse = bool(case["should_refuse"])
@@ -405,6 +666,28 @@ def evaluate_experiment(config: ExperimentConfig, cases: List[Dict[str, Any]]) -
             "faithfulness_proxy": 1.0 if (should_refuse and refused) else citation_accuracy(source_doc_ids, expected_doc_ids, should_refuse),
             "latency_ms": response["latency_ms"],
         }
+        conflict_metric = conflict_resolution_accuracy(retrieved_doc_ids, case)
+        multi_hop_metric = multi_hop_coverage(retrieved_doc_ids, case)
+        table_metric = table_evidence_accuracy(retrieved_doc_ids, case)
+        priority_metric = priority_compliance(retrieved_doc_ids, case)
+        metrics.update(
+            {
+                "conflict_resolution_accuracy": conflict_metric,
+                "conflict_resolution_accuracy_applicable": bool(case.get("conflict_doc_ids"))
+                or "版本" in str(case.get("question_type", ""))
+                or "冲突" in str(case.get("required_reasoning", "")),
+                "multi_hop_coverage": multi_hop_metric,
+                "multi_hop_coverage_applicable": len(case.get("expected_doc_ids") or []) >= 2
+                or "跨文档" in str(case.get("question_type", ""))
+                or "multi_hop" in str(case.get("required_reasoning", "")),
+                "table_evidence_accuracy": table_metric,
+                "table_evidence_accuracy_applicable": "表格" in str(case.get("question_type", ""))
+                or "金额" in str(case.get("question_type", ""))
+                or "table" in str(case.get("required_reasoning", "")),
+                "priority_compliance": priority_metric,
+                "priority_compliance_applicable": bool(case.get("expected_policy_priority")),
+            }
+        )
         evaluated.append(
             {
                 **case,
@@ -430,6 +713,12 @@ def evaluate_experiment(config: ExperimentConfig, cases: List[Dict[str, Any]]) -
             "refusal_gate": config.refusal_gate,
             "sentence_window_size": config.sentence_window_size,
             "structured_boost": config.structured_boost or config.retriever == "structured_hybrid_rrf",
+            "dataset_layers": config.dataset_layers,
+            "eval_dataset_layers": config.eval_dataset_layers,
+            "selection_profile": config.selection_profile,
+            "query_construction": config.query_construction,
+            "query_construction_mode": config.query_construction_mode,
+            "require_llm_query_construction": config.require_llm_query_construction,
             "index_build_ms": runner.index_build_ms,
             "model_load_ms": runner.model_load_ms,
             "embedding_dimension": runner.embedding_dimension,
@@ -457,8 +746,11 @@ def evaluate_experiment(config: ExperimentConfig, cases: List[Dict[str, Any]]) -
     }
 
 
-def load_configs(mode: str) -> List[ExperimentConfig]:
-    configs = [ExperimentConfig.from_path(path) for path in sorted(CONFIG_DIR.glob("*.json"))]
+def load_configs(mode: str, config_pattern: str = "*.json") -> List[ExperimentConfig]:
+    paths = []
+    for pattern in [item.strip() for item in config_pattern.split(",") if item.strip()]:
+        paths.extend(CONFIG_DIR.glob(pattern))
+    configs = [ExperimentConfig.from_path(path) for path in sorted(set(paths))]
     if mode == "quick":
         configs = [config for config in configs if config.stage == "quick"]
     return configs
@@ -475,6 +767,10 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
         "citation_accuracy",
         "refusal_accuracy",
         "faithfulness_proxy",
+        "conflict_resolution_accuracy",
+        "multi_hop_coverage",
+        "table_evidence_accuracy",
+        "priority_compliance",
         "latency_p50_ms",
         "latency_p95_ms",
         "index_build_ms",
@@ -493,6 +789,12 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
         "refusal_gate",
         "sentence_window_size",
         "structured_boost",
+        "dataset_layers",
+        "eval_dataset_layers",
+        "selection_profile",
+        "query_construction",
+        "query_construction_mode",
+        "require_llm_query_construction",
     ]
     with CSV_REPORT_PATH.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -515,10 +817,18 @@ def write_csv(results: List[Dict[str, Any]]) -> None:
                         "refusal_gate": config["refusal_gate"],
                         "sentence_window_size": config.get("sentence_window_size", 0),
                         "structured_boost": config.get("structured_boost", False) or config.get("retriever") == "structured_hybrid_rrf",
+                        "dataset_layers": json.dumps(config.get("dataset_layers", "all"), ensure_ascii=False),
+                        "eval_dataset_layers": json.dumps(config.get("eval_dataset_layers", "all"), ensure_ascii=False),
+                        "selection_profile": config.get("selection_profile", "standard"),
+                        "query_construction": config.get("query_construction", False),
+                        "query_construction_mode": config.get("query_construction_mode", "rules"),
+                        "require_llm_query_construction": config.get("require_llm_query_construction", False),
                     }
                 )
             else:
                 row.update(result.get("summary", {}))
+                row["dataset_layers"] = json.dumps(row.get("dataset_layers", "all"), ensure_ascii=False)
+                row["eval_dataset_layers"] = json.dumps(row.get("eval_dataset_layers", "all"), ensure_ascii=False)
             row["status"] = result["status"]
             writer.writerow({field: row.get(field, "") for field in fields})
 
@@ -545,11 +855,34 @@ def metric_delta(first: Dict[str, Any], last: Dict[str, Any], key: str) -> str:
 
 
 def selection_score(summary: Dict[str, Any]) -> float:
+    latency_penalty = min(summary.get("latency_p95_ms", 0.0) / 1000.0, 1.0)
+    if summary.get("selection_profile") == "hard":
+        return (
+            summary.get("citation_accuracy", 0.0) * 0.25
+            + summary.get("conflict_resolution_accuracy", 0.0) * 0.20
+            + summary.get("multi_hop_coverage", 0.0) * 0.15
+            + summary.get("answer_accuracy_proxy", 0.0) * 0.20
+            + summary.get("refusal_accuracy", 0.0) * 0.15
+            + (1.0 - latency_penalty) * 0.05
+        )
     return (
         summary.get("answer_accuracy_proxy", 0.0) * 0.30
-        + summary.get("hit_at_5", 0.0) * 0.20
+        + ((summary.get("hit_at_5", 0.0) + summary.get("mrr_at_5", 0.0)) / 2.0) * 0.20
         + summary.get("citation_accuracy", 0.0) * 0.30
-        + summary.get("refusal_accuracy", 0.0) * 0.20
+        + summary.get("refusal_accuracy", 0.0) * 0.15
+        + (1.0 - latency_penalty) * 0.05
+    )
+
+
+def case_quality_score(case: Dict[str, Any]) -> float:
+    metrics = case.get("metrics", {})
+    return (
+        metrics.get("citation_accuracy", 0.0) * 0.25
+        + metrics.get("conflict_resolution_accuracy", 0.0) * 0.20
+        + metrics.get("multi_hop_coverage", 0.0) * 0.15
+        + metrics.get("answer_correctness_proxy", 0.0) * 0.20
+        + metrics.get("refusal_accuracy", 0.0) * 0.15
+        + metrics.get("faithfulness_proxy", 0.0) * 0.05
     )
 
 
@@ -619,12 +952,108 @@ def build_markdown(results: List[Dict[str, Any]]) -> str:
             f"{config['description']} |"
         )
 
+    layer_rows = []
+    for result in completed:
+        summary = result["summary"]
+        config = result["config"]
+        if str(summary.get("id", "")).startswith(("V6-", "V10-", "V11-", "V12-", "V13-", "V14-")) and str(config.get("name", "")).startswith("layer_"):
+            layer_rows.append(
+                f"| {summary['id']} | {json.dumps(summary.get('dataset_layers'), ensure_ascii=False)} | "
+                f"{json.dumps(summary.get('eval_dataset_layers'), ensure_ascii=False)} | {summary['total']} | "
+                f"{summary['answer_accuracy_proxy']:.3f} | {summary['citation_accuracy']:.3f} | "
+                f"{summary.get('conflict_resolution_accuracy', 0):.3f} | {summary.get('multi_hop_coverage', 0):.3f} | "
+                f"{summary.get('table_evidence_accuracy', 0):.3f} | {selection_score(summary):.3f} |"
+            )
+    if layer_rows:
+        lines.extend(
+            [
+                "",
+                "## Layered Difficulty Matrix",
+                "",
+                "| Version | Loaded Layers | Eval Layers | Cases | Answer | Citation | Conflict | Multi-hop | Table | Weighted Score |",
+                "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+                *layer_rows,
+                "",
+                "Selection rule: standard cases use Answer 30%, Citation 30%, Hit/MRR 20%, Refusal 15%, Latency 5%; hard cases use Citation 25%, Conflict 20%, Multi-hop 15%, Answer 20%, Refusal 15%, Latency 5%.",
+            ]
+        )
+
+    hard_baseline = next((result for result in completed if result["summary"].get("id") == "V6-hard-bge-small"), None)
+    if hard_baseline:
+        baseline_scores = {case["id"]: case_quality_score(case) for case in hard_baseline.get("cases", [])}
+        win_rows = []
+        for result in completed:
+            summary = result["summary"]
+            if summary.get("selection_profile") != "hard" or summary.get("id") == "V6-hard-bge-small":
+                continue
+            comparable = [case for case in result.get("cases", []) if case["id"] in baseline_scores]
+            if not comparable:
+                continue
+            wins = sum(1 for case in comparable if case_quality_score(case) > baseline_scores[case["id"]] + 1e-9)
+            ties = sum(1 for case in comparable if abs(case_quality_score(case) - baseline_scores[case["id"]]) <= 1e-9)
+            win_rows.append(
+                f"| {summary['id']} | {len(comparable)} | {wins / len(comparable):.3f} | {wins} | {ties} | {len(comparable) - wins - ties} |"
+            )
+        if win_rows:
+            lines.extend(
+                [
+                    "",
+                    "## Hard Case Win Rate",
+                    "",
+                    "| Version | Comparable Cases | Win Rate vs V6-hard | Wins | Ties | Losses |",
+                    "| --- | ---: | ---: | ---: | ---: | ---: |",
+                *win_rows,
+                "",
+                "A win means the case-level hard weighted score is higher than `V6-hard-bge-small` for the same question.",
+            ]
+        )
+
+    query_rows = []
+    query_targets = [
+        "V6-hard-bge-small",
+        "V11-hard-structured",
+        "V13-hard-query-construction",
+        "V14-hard-query-structured",
+        "V15-hard-llm-query-construction",
+        "V16-hard-llm-query-structured",
+    ]
+    by_summary_id = {result.get("summary", {}).get("id"): result for result in completed}
+    for config_id in query_targets:
+        result = by_summary_id.get(config_id)
+        if not result:
+            continue
+        summary = result["summary"]
+        query_rows.append(
+            f"| {summary['id']} | {summary['retriever']} | {summary.get('query_construction', False)}"
+            f"/{summary.get('query_construction_mode', 'rules')} | "
+            f"{summary.get('structured_boost', False)} | {summary['answer_accuracy_proxy']:.3f} | "
+            f"{summary['citation_accuracy']:.3f} | {summary.get('conflict_resolution_accuracy', 0):.3f} | "
+            f"{summary.get('multi_hop_coverage', 0):.3f} | {summary.get('table_evidence_accuracy', 0):.3f} | "
+            f"{summary['latency_p95_ms']:.1f} |"
+        )
+    if query_rows:
+        lines.extend(
+            [
+                "",
+                "## Query Construction Findings",
+                "",
+                "| Version | Retriever | Query Construction | Structured Boost | Answer | Citation | Conflict | Multi-hop | Table | p95 ms |",
+                "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+                *query_rows,
+                "",
+                "Decision rule: query construction is useful only if it improves hard-case coverage without lowering citation, conflict handling, or latency beyond the business tolerance. It should remain an experiment unless it beats V6/V11 on hard weighted score.",
+            ]
+        )
+
     embedding_rows = []
     embedding_ids = [
         "V6-bge-small",
         "V9-qwen3-0.6b",
         "V9-bge-m3",
         "V9-gte-qwen2-1.5b",
+        "V6-hard-bge-small",
+        "V9-hard-qwen3-0.6b",
+        "V9-hard-bge-m3",
     ]
     by_id = {result["config"]["id"]: result for result in results}
     for config_id in embedding_ids:
@@ -789,6 +1218,7 @@ def main() -> None:
     parser.add_argument("--offline", action="store_true", help="Use local Hugging Face cache only; skipped model configs are allowed.")
     parser.add_argument("--allow-skip", action="store_true", help="Allow unavailable embedding configs to be marked skipped.")
     parser.add_argument("--strict", action="store_true", help="Fail the run if any full embedding config is skipped.")
+    parser.add_argument("--config-pattern", default="*.json", help="Only run configs whose filename matches this glob pattern.")
     args = parser.parse_args()
     mode = "full" if args.full else "quick"
     strict = args.strict and mode == "full" and not args.allow_skip
@@ -803,8 +1233,8 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     DOC_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    cases = load_cases()
-    results = [evaluate_experiment(config, cases) for config in load_configs(mode)]
+    configs = load_configs(mode, args.config_pattern)
+    results = [evaluate_experiment(config, load_cases(config.eval_dataset_layers)) for config in configs]
     skipped = [result for result in results if result["status"] == "skipped"]
     if strict and skipped:
         skipped_names = ", ".join(result["config"]["name"] for result in skipped)

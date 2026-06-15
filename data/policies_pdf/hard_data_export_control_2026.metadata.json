@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-HARD-DATA-EXPORT-2026",
+  "title": "客户数据导出与外发控制办法",
+  "department": "Security",
+  "process_type": "data_export",
+  "risk_level": "high",
+  "owner": "信息安全部",
+  "system": "企业流程中心",
+  "form_id": "FORM-HARD-DATA-EXPORT-2026",
+  "approval_sla": "三个工作日",
+  "version": "V3.0",
+  "effective_date": "2026-04-01",
+  "source_type": "pdf",
+  "dataset_layer": "hard",
+  "effective_from": "2026-04-01",
+  "effective_to": "",
+  "supersedes": "",
+  "priority": "90",
+  "conflict_group": "data_export",
+  "related_doc_ids": "PDF-MED-SECURITY-2026,PDF-MED-PROC-CONTRACT-2026"
+}

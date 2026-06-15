@@ -1,0 +1,21 @@
+{
+  "id": "V12-baseline-sentence-structured",
+  "name": "layer_baseline_v12_sentence_structured",
+  "stage": "quick",
+  "description": "Baseline layer sentence-window plus structured boost.",
+  "chunk_strategy": "sentence_window",
+  "retriever": "structured_hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "sentence_window_size": 1,
+  "structured_boost": true,
+  "dataset_layers": "baseline",
+  "eval_dataset_layers": "baseline",
+  "selection_profile": "standard",
+  "final_candidate": false,
+  "require_real_embedding": true,
+  "next_step": "Baseline layer combined index ablation."
+}

@@ -1,0 +1,23 @@
+{
+  "id": "V16-hard-llm-query-structured",
+  "name": "layer_hard_v16_llm_query_structured",
+  "stage": "full",
+  "description": "Hard layer LLM query construction plus structured metadata boost after RRF.",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "structured_hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "query_construction": true,
+  "query_construction_mode": "llm",
+  "require_llm_query_construction": true,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "structured_boost": true,
+  "dataset_layers": ["baseline", "medium", "hard"],
+  "eval_dataset_layers": "hard",
+  "selection_profile": "hard",
+  "final_candidate": true,
+  "require_real_embedding": true,
+  "next_step": "Check whether LLM-rewritten queries and structured metadata boost can improve hard cases, or whether the two signals over-amplify wrong metadata."
+}

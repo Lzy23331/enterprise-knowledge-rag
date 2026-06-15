@@ -1,0 +1,20 @@
+{
+  "id": "V10-baseline-sentence-window",
+  "name": "layer_baseline_v10_sentence_window",
+  "stage": "quick",
+  "description": "Baseline layer sentence-window retrieval.",
+  "chunk_strategy": "sentence_window",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "sentence_window_size": 1,
+  "dataset_layers": "baseline",
+  "eval_dataset_layers": "baseline",
+  "selection_profile": "standard",
+  "final_candidate": false,
+  "require_real_embedding": true,
+  "next_step": "Baseline layer sentence-window ablation."
+}

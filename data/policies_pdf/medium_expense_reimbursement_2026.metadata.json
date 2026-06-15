@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-MED-FIN-EXPENSE-2026",
+  "title": "财务报销与票据管理办法",
+  "department": "Finance",
+  "process_type": "expense",
+  "risk_level": "medium",
+  "owner": "财务部",
+  "system": "企业流程中心",
+  "form_id": "FORM-MED-FIN-EXPENSE-2026",
+  "approval_sla": "三个工作日",
+  "version": "V2.0",
+  "effective_date": "2026-03-01",
+  "source_type": "pdf",
+  "dataset_layer": "medium",
+  "effective_from": "2026-03-01",
+  "effective_to": "",
+  "supersedes": "",
+  "priority": "45",
+  "conflict_group": "",
+  "related_doc_ids": "PDF-ADM-TRAVEL-2026,PDF-FIN-BUDGET-2026"
+}

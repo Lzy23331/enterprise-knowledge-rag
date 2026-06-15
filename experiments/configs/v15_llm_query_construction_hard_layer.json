@@ -1,0 +1,22 @@
+{
+  "id": "V15-hard-llm-query-construction",
+  "name": "layer_hard_v15_llm_query_construction",
+  "stage": "full",
+  "description": "Hard layer LLM query construction: use an OpenAI-compatible LLM to rewrite colloquial questions into retrieval-oriented queries.",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "query_construction": true,
+  "query_construction_mode": "llm",
+  "require_llm_query_construction": true,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "dataset_layers": ["baseline", "medium", "hard"],
+  "eval_dataset_layers": "hard",
+  "selection_profile": "hard",
+  "final_candidate": true,
+  "require_real_embedding": true,
+  "next_step": "Check whether LLM query construction improves colloquial, version-sensitive, multi-hop and exception hard cases without hurting citations."
+}

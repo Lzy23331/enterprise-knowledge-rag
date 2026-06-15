@@ -1,0 +1,22 @@
+{
+  "id": "V9-hard-qwen3-0.6b",
+  "name": "layer_hard_v9_qwen3_06b",
+  "stage": "full",
+  "description": "Hard layer final RAG chain with Qwen3-Embedding-0.6B.",
+  "chunk_strategy": "markdown_headers",
+  "retriever": "hybrid_rrf",
+  "embedding_model": "Qwen/Qwen3-Embedding-0.6B",
+  "vector_backend": "faiss",
+  "query_rewrite": false,
+  "metadata_filter": false,
+  "refusal_gate": true,
+  "dataset_layers": ["baseline", "medium", "hard"],
+  "eval_dataset_layers": "hard",
+  "selection_profile": "hard",
+  "final_candidate": true,
+  "require_real_embedding": true,
+  "embedding_trust_remote_code": true,
+  "query_instruction": "为企业制度问答检索相关条款：",
+  "document_instruction": "企业制度条款：",
+  "next_step": "Compare hard-case lift against bge-small; skip honestly if the model is unavailable."
+}

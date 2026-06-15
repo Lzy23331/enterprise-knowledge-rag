@@ -1,0 +1,21 @@
+{
+  "doc_id": "PDF-MED-SECURITY-2026",
+  "title": "信息安全与账号权限管理办法",
+  "department": "Security",
+  "process_type": "security",
+  "risk_level": "medium",
+  "owner": "信息安全部",
+  "system": "企业流程中心",
+  "form_id": "FORM-MED-SECURITY-2026",
+  "approval_sla": "三个工作日",
+  "version": "V2.0",
+  "effective_date": "2026-03-01",
+  "source_type": "pdf",
+  "dataset_layer": "medium",
+  "effective_from": "2026-03-01",
+  "effective_to": "",
+  "supersedes": "",
+  "priority": "45",
+  "conflict_group": "",
+  "related_doc_ids": "PDF-HARD-DATA-EXPORT-2026"
+}
